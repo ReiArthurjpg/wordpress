@@ -22,14 +22,24 @@ const viewMode = ref('grid')
 
 const filteredUsuarios = computed(() => {
   if (!usuarios.value) return []
-  if (!searchQuery.value) return usuarios.value
   
   const query = searchQuery.value.toLowerCase()
+  const status = statusFilter.value
+  
   return usuarios.value.filter(u => {
+    // Lógica de Busca
     const nome = u.acf?.nome?.toLowerCase() || ''
     const email = u.acf?.email?.toLowerCase() || ''
     const cpf = u.acf?.cpf?.toLowerCase() || ''
-    return nome.includes(query) || email.includes(query) || cpf.includes(query)
+    const id = String(u.id)
+    
+    const matchesSearch = nome.includes(query) || email.includes(query) || cpf.includes(query) || id.includes(query)
+    
+    // Lógica de Status (Placeholder - assumindo que a API pode retornar um status futuramente)
+    // Para efeito de demonstração, todos são considerados 'ativos' se a API não retornar status
+    const matchesStatus = status === 'todos' || status === 'ativo' 
+    
+    return matchesSearch && matchesStatus
   })
 })
 </script>
@@ -48,180 +58,192 @@ const filteredUsuarios = computed(() => {
         </p>
       </section>
 
-      <!-- Sessão 2: Ações e Filtros -->
-      <section class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-10 bg-white p-5 rounded-[2rem] border-2 border-slate-100 shadow-md shadow-slate-200/50">
+      <!-- Sessão 2: Ações e Filtros (Versão Compacta Premium) -->
+      <section class="mb-8 bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 relative overflow-hidden">
+        <!-- Detalhe de luz no topo -->
+        <div class="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent"></div>
         
-        <!-- Grupo de Filtros -->
-        <div class="flex flex-col md:flex-row gap-4 flex-1">
-          <!-- Input Busca -->
-          <div class="relative group flex-1 max-w-md">
-            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search class="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            </div>
-            <input 
-              v-model="searchQuery"
-              type="text" 
-              placeholder="Pesquisar por nome, email, CPF ou ID..."
-              class="block w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm shadow-sm"
-            >
-            <div v-if="searchQuery" class="absolute inset-y-0 right-3 flex items-center">
-              <button @click="searchQuery = ''" class="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
-                <Plus class="w-4 h-4 rotate-45" />
-              </button>
-            </div>
-          </div>
+        <!-- Área de Conteúdo -->
+        <div class="px-5 py-4 md:px-7 md:py-5">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            
+            <!-- Grupo de Filtros -->
+            <div class="flex flex-col md:flex-row gap-4 flex-1">
+              <!-- Input Busca -->
+              <div class="relative group flex-1 max-w-lg">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+                </div>
+                <input 
+                  v-model="searchQuery"
+                  type="text" 
+                  placeholder="Pesquisar por nome, email, CPF ou ID..."
+                  class="block w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
+                >
+              </div>
 
-          <!-- Select Status -->
-          <div class="relative">
-            <select 
-              v-model="statusFilter"
-              class="px-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-600 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none cursor-pointer w-full md:w-40 pr-10"
-            >
-              <option value="todos">Todos Status</option>
-              <option value="ativo">Ativos</option>
-              <option value="inativo">Inativos</option>
-            </select>
-            <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              <!-- Select Status -->
+              <div class="relative">
+                <select 
+                  v-model="statusFilter"
+                  class="px-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl text-slate-600 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all shadow-inner appearance-none cursor-pointer w-full md:w-44 pr-10"
+                >
+                  <option value="todos">Todos Status</option>
+                  <option value="ativo">Ativos</option>
+                  <option value="inativo">Inativos</option>
+                </select>
+                <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo de Ações -->
+            <div class="flex items-center gap-4 justify-between lg:justify-end">
+              
+              <!-- View Toggle -->
+              <div class="flex items-center bg-slate-50/80 p-1 rounded-xl border border-slate-100">
+                <button 
+                  @click="viewMode = 'grid'"
+                  :class="['p-1.5 rounded-lg transition-all duration-300', viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-md shadow-indigo-500/10' : 'text-slate-400 hover:text-slate-600']"
+                >
+                  <LayoutGrid class="w-4 h-4" />
+                </button>
+                <button 
+                  @click="viewMode = 'list'"
+                  :class="['p-1.5 rounded-lg transition-all duration-300', viewMode === 'list' ? 'bg-white text-indigo-600 shadow-md shadow-indigo-500/10' : 'text-slate-400 hover:text-slate-600']"
+                >
+                  <List class="w-4 h-4" />
+                </button>
+              </div>
+
+              <!-- Botão Adicionar -->
+              <button class="relative flex shrink-0 items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all duration-500 shadow-lg shadow-slate-900/10 group text-sm overflow-hidden">
+                <Plus class="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
+                Novo Usuário
+              </button>
+
             </div>
           </div>
         </div>
 
-        <!-- Grupo de Ações e View Mode -->
-        <div class="flex items-center gap-4 justify-between lg:justify-end">
-          
-          <!-- View Toggle -->
-          <div class="flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm">
-            <button 
-              @click="viewMode = 'grid'"
-              :class="['p-2 rounded-xl transition-all', viewMode === 'grid' ? 'bg-slate-100 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
-            >
-              <LayoutGrid class="w-5 h-5" />
-            </button>
-            <button 
-              @click="viewMode = 'list'"
-              :class="['p-2 rounded-xl transition-all', viewMode === 'list' ? 'bg-slate-100 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
-            >
-              <List class="w-5 h-5" />
-            </button>
+        <!-- Rodapé do Card: Contador -->
+        <div class="px-5 py-1.5 md:px-7 bg-slate-50/50 flex items-center justify-between">
+          <div class="text-[12px] text-slate-400 font-medium">
+            Mostrando <span class="text-indigo-600 font-black">{{ filteredUsuarios.length }}</span> de <span class="text-slate-900 font-black">12</span> membros encontrados.
           </div>
-
-          <!-- Botão Adicionar -->
-          <button class="flex shrink-0 items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-lg shadow-slate-200 hover:shadow-indigo-200 hover:-translate-y-0.5 active:scale-95 group text-sm border border-slate-800 hover:border-indigo-500">
-            <Plus class="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-            Novo Usuário
-          </button>
-
+          <div v-if="searchQuery" class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+            Filtro Ativo
+          </div>
         </div>
       </section>
 
-      <!-- Sessão 3: Dados / Grid -->
+      <!-- Sessão 3: Dados / Grid-List -->
 
-      <!-- Loading State (Skeleton) -->
-      <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <div v-for="i in 6" :key="i" class="bg-white/60 backdrop-blur-sm border border-slate-200/60 rounded-3xl p-6 shadow-sm animate-pulse">
-          <div class="flex items-center gap-5 mb-6">
-            <div class="w-16 h-16 rounded-2xl bg-slate-200"></div>
-            <div class="space-y-3 flex-1">
-              <div class="h-4 bg-slate-200 rounded-md w-3/4"></div>
-              <div class="h-3 bg-slate-200 rounded-md w-1/2"></div>
-            </div>
-          </div>
-          <div class="space-y-4">
-            <div class="h-3 bg-slate-200 rounded-md w-full"></div>
-            <div class="h-3 bg-slate-200 rounded-md w-5/6"></div>
-          </div>
+      <!-- Loading State -->
+      <div v-if="pending" :class="viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8' : 'flex flex-col gap-4'">
+        <div v-for="i in 6" :key="i" class="bg-white/60 rounded-3xl p-6 shadow-sm animate-pulse flex items-center gap-5">
+           <div class="w-16 h-16 rounded-2xl bg-slate-200 flex-shrink-0"></div>
+           <div class="flex-1 space-y-3">
+             <div class="h-4 bg-slate-200 rounded w-1/2"></div>
+             <div class="h-3 bg-slate-200 rounded w-3/4"></div>
+           </div>
         </div>
       </div>
 
-      <!-- Grid with Transition -->
+      <!-- Content Area with Transition -->
       <div v-else-if="filteredUsuarios.length > 0">
         <TransitionGroup 
           tag="div" 
           name="list"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          :class="[
+            viewMode === 'grid' 
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8' 
+              : 'flex flex-col gap-4'
+          ]"
         >
           <div
             v-for="user in filteredUsuarios"
             :key="user.id"
-            class="group relative bg-white/90 backdrop-blur-md border border-slate-200/80 rounded-[2rem] p-6 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-2 transition-all duration-500 overflow-hidden"
+            :class="[
+              'group relative bg-white/95 border border-slate-200/80 transition-all duration-500 overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1',
+              viewMode === 'grid' 
+                ? 'rounded-[2rem] p-8 flex flex-col items-center text-center' 
+                : 'rounded-2xl p-5 flex flex-col md:flex-row md:items-center gap-6'
+            ]"
           >
-            <!-- Animation Backdrop -->
-            <div class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
+            <!-- Animation Backdrop (Grid Only) -->
+            <div v-if="viewMode === 'grid'" class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
 
-            <!-- Avatar + Status Section -->
-            <div class="flex items-start justify-between mb-6">
-              <div class="relative">
-                <div class="absolute inset-0 bg-indigo-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                <img
-                  v-if="user.acf?.imagem"
-                  :src="user.acf.imagem.url"
-                  class="relative w-16 h-16 rounded-2xl object-cover shadow-inner ring-1 ring-black/5"
-                />
-                <div v-else class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 shadow-inner ring-1 ring-black/5">
-                  <User class="w-8 h-8 opacity-40" />
-                </div>
+            <!-- Avatar -->
+            <div :class="['relative shrink-0', viewMode === 'grid' ? 'mb-6' : '']">
+              <div class="absolute inset-0 bg-indigo-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              <img
+                v-if="user.acf?.imagem"
+                :src="user.acf.imagem.url"
+                class="relative w-20 h-20 rounded-2xl object-cover shadow-inner ring-1 ring-black/5"
+              />
+              <div v-else class="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 shadow-inner ring-1 ring-black/5">
+                <User class="w-10 h-10 opacity-30" />
               </div>
-              <div class="flex flex-col items-end">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold uppercase tracking-wider">
-                  <CheckCircle2 class="w-3.5 h-3.5" />
+            </div>
+
+            <!-- Content -->
+            <div :class="['flex-1 min-w-0', viewMode === 'grid' ? 'w-full mb-8' : '']">
+              <div class="flex items-center gap-3 mb-1" :class="viewMode === 'grid' ? 'justify-center' : ''">
+                <h2 class="text-2xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
+                  {{ user.acf?.nome || 'Sem nome' }}
+                </h2>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
                   Ativo
                 </span>
               </div>
-            </div>
-
-            <!-- Content Area -->
-            <div class="mb-8">
-              <h2 class="text-2xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                {{ user.acf?.nome || 'Sem nome' }}
-              </h2>
-              <p class="text-sm font-medium text-slate-400 mt-1">
+              <p class="text-sm font-medium text-slate-400">
                 ID Membro: #{{ user.id }}
               </p>
-            </div>
 
-            <!-- Info Grid -->
-            <div class="space-y-4 pt-6 border-t border-slate-100/80">
-              <div class="flex items-center justify-between group/item">
-                <div class="flex items-center gap-2.5 text-slate-400 group-hover/item:text-indigo-500 transition-colors">
-                  <Mail class="w-4 h-4" />
-                  <span class="text-sm font-medium">Email</span>
+              <!-- Additional info for List mode hidden in Grid -->
+              <div v-if="viewMode === 'list'" class="flex flex-wrap gap-6 mt-3">
+                <div class="flex items-center gap-2 text-slate-500 text-sm">
+                  <Mail class="w-4 h-4 text-slate-400" />
+                  {{ user.acf?.email || 'N/A' }}
                 </div>
-                <span class="text-sm font-semibold text-slate-700 truncate max-w-[160px]">{{ user.acf?.email || 'N/A' }}</span>
-              </div>
-
-              <div class="flex items-center justify-between group/item">
-                <div class="flex items-center gap-2.5 text-slate-400 group-hover/item:text-indigo-500 transition-colors">
-                  <FileText class="w-4 h-4" />
-                  <span class="text-sm font-medium">CPF</span>
+                <div class="flex items-center gap-2 text-slate-500 text-sm">
+                  <FileText class="w-4 h-4 text-slate-400" />
+                  {{ user.acf?.cpf || 'N/A' }}
                 </div>
-                <span class="text-sm font-semibold text-slate-700">{{ user.acf?.cpf || 'N/A' }}</span>
               </div>
             </div>
 
-            <!-- Action button on hover -->
-            <div class="mt-6 pt-2 overflow-hidden h-0 group-hover:h-12 transition-all duration-300 ease-out">
-              <button class="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200">
-                Ver Perfil Completo
+            <!-- Info Grid (Grid mode only) -->
+            <div v-if="viewMode === 'grid'" class="w-full space-y-4 pt-6 border-t border-slate-100/80">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400 font-medium">Email</span>
+                <span class="text-slate-700 font-semibold truncate max-w-[140px]">{{ user.acf?.email || 'N/A' }}</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400 font-medium">CPF</span>
+                <span class="text-slate-700 font-semibold">{{ user.acf?.cpf || 'N/A' }}</span>
+              </div>
+            </div>
+
+            <!-- Action Button -->
+            <div :class="['shrink-0', viewMode === 'grid' ? 'mt-8 w-full' : 'ml-auto']">
+              <button class="px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200">
+                {{ viewMode === 'grid' ? 'Ver Perfil' : 'Detalhes' }}
               </button>
             </div>
           </div>
         </TransitionGroup>
       </div>
 
-      <!-- Empty/No result state -->
-      <div v-else class="flex flex-col items-center justify-center p-20 bg-white/40 backdrop-blur-md border border-slate-200/50 rounded-[3rem] border-dashed">
-        <div class="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6 text-slate-300">
-           <AlertCircle class="w-10 h-10" />
-        </div>
-        <h3 class="text-2xl font-bold text-slate-800">
-          {{ searchQuery ? 'Nenhum resultado para "' + searchQuery + '"' : 'Nenhum usuário encontrado' }}
-        </h3>
-        <p class="text-slate-500 mt-3 text-center max-w-sm text-lg">
-          {{ searchQuery ? 'Tente buscar por termos diferentes ou verifique se há erros de digitação.' : 'Parece que ainda não há membros cadastrados no sistema.' }}
-        </p>
-        <button v-if="searchQuery" @click="searchQuery = ''" class="mt-8 text-indigo-600 font-bold hover:text-indigo-700 underline underline-offset-4">
-          Limpar busca e ver todos
+      <!-- Empty State -->
+      <div v-else class="flex flex-col items-center justify-center p-20 bg-white/40 border-2 border-slate-200 border-dashed rounded-[3rem]">
+        <AlertCircle class="w-12 h-12 text-slate-300 mb-4" />
+        <h3 class="text-2xl font-bold text-slate-800 text-center">Nenhum usuário encontrado</h3>
+        <p class="text-slate-400 mt-2 text-center max-w-sm">Tente ajustar seus filtros ou termos de busca.</p>
+        <button v-if="searchQuery || statusFilter !== 'todos'" @click="searchQuery = ''; statusFilter = 'todos'" class="mt-6 text-indigo-600 font-bold hover:underline">
+          Limpar todos os filtros
         </button>
       </div>
 
