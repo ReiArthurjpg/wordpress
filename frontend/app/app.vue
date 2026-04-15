@@ -7,7 +7,9 @@ import {
   Plus, 
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  LayoutGrid,
+  List
 } from 'lucide-vue-next'
 
 const { data: usuarios, pending } = await useFetch(
@@ -15,6 +17,8 @@ const { data: usuarios, pending } = await useFetch(
 )
 
 const searchQuery = ref('')
+const statusFilter = ref('todos')
+const viewMode = ref('grid')
 
 const filteredUsuarios = computed(() => {
   if (!usuarios.value) return []
@@ -34,49 +38,84 @@ const filteredUsuarios = computed(() => {
   <div class="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 p-6 md:p-12 font-sans selection:bg-indigo-100 selection:text-indigo-900 text-slate-800">
     <div class="max-w-7xl mx-auto">
       
-      <!-- Header Area -->
-      <header class="flex flex-col space-y-8 mb-12">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-sm font-medium mb-4 shadow-sm">
-              <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Sistema Operacional
+      <!-- Sessão 1: Identificação -->
+      <section class="mb-12 text-center flex flex-col items-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900">
+          Dashboard de <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500">Usuários</span>
+        </h1>
+        <p class="text-slate-500 mt-4 text-lg max-w-xl leading-relaxed">
+          Gerencie e visualize membros cadastrados com filtros inteligentes e interface de alta performance.
+        </p>
+      </section>
+
+      <!-- Sessão 2: Ações e Filtros -->
+      <section class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 mb-10 bg-white p-5 rounded-[2rem] border-2 border-slate-100 shadow-md shadow-slate-200/50">
+        
+        <!-- Grupo de Filtros -->
+        <div class="flex flex-col md:flex-row gap-4 flex-1">
+          <!-- Input Busca -->
+          <div class="relative group flex-1 max-w-md">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search class="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             </div>
-            <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900">
-              Dashboard de <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500">Usuários</span>
-            </h1>
-            <p class="text-slate-500 mt-4 text-lg max-w-xl leading-relaxed">
-              Gerencie e visualize membros cadastrados com filtros inteligentes e interface de alta performance.
-            </p>
+            <input 
+              v-model="searchQuery"
+              type="text" 
+              placeholder="Pesquisar por nome, email, CPF ou ID..."
+              class="block w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm shadow-sm"
+            >
+            <div v-if="searchQuery" class="absolute inset-y-0 right-3 flex items-center">
+              <button @click="searchQuery = ''" class="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
+                <Plus class="w-4 h-4 rotate-45" />
+              </button>
+            </div>
           </div>
 
-          <button class="flex items-center gap-2 px-6 py-3.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-xl shadow-slate-200 hover:shadow-indigo-200 hover:-translate-y-0.5 active:scale-95 group">
+          <!-- Select Status -->
+          <div class="relative">
+            <select 
+              v-model="statusFilter"
+              class="px-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-slate-600 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none cursor-pointer w-full md:w-40 pr-10"
+            >
+              <option value="todos">Todos Status</option>
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+            <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grupo de Ações e View Mode -->
+        <div class="flex items-center gap-4 justify-between lg:justify-end">
+          
+          <!-- View Toggle -->
+          <div class="flex items-center bg-white border border-slate-200 rounded-2xl p-1.5 shadow-sm">
+            <button 
+              @click="viewMode = 'grid'"
+              :class="['p-2 rounded-xl transition-all', viewMode === 'grid' ? 'bg-slate-100 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+            >
+              <LayoutGrid class="w-5 h-5" />
+            </button>
+            <button 
+              @click="viewMode = 'list'"
+              :class="['p-2 rounded-xl transition-all', viewMode === 'list' ? 'bg-slate-100 text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600']"
+            >
+              <List class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Botão Adicionar -->
+          <button class="flex shrink-0 items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-2xl font-bold transition-all duration-300 shadow-lg shadow-slate-200 hover:shadow-indigo-200 hover:-translate-y-0.5 active:scale-95 group text-sm border border-slate-800 hover:border-indigo-500">
             <Plus class="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
             Novo Usuário
           </button>
-        </div>
 
-        <!-- Search Bar -->
-        <div class="relative group max-w-2xl">
-          <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-            <Search class="w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-          </div>
-          <input 
-            v-model="searchQuery"
-            type="text" 
-            placeholder="Pesquisar por nome, email ou CPF..."
-            class="block w-full pl-12 pr-4 py-4 bg-white/70 backdrop-blur-xl border border-slate-200 rounded-2xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all duration-300 text-lg shadow-sm"
-          >
-          <div v-if="searchQuery" class="absolute inset-y-0 right-4 flex items-center">
-            <button @click="searchQuery = ''" class="p-1 hover:bg-slate-100 rounded-lg transition-colors text-slate-400">
-              <Plus class="w-5 h-5 rotate-45" />
-            </button>
-          </div>
         </div>
-      </header>
+      </section>
+
+      <!-- Sessão 3: Dados / Grid -->
 
       <!-- Loading State (Skeleton) -->
       <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
