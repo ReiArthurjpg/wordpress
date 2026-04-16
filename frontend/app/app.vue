@@ -11,9 +11,10 @@ import {
   LayoutGrid,
   List,
   Image as ImageIcon,
-  Upload,
   Camera,
-  X
+  X,
+  Pencil,
+  Trash2
 } from 'lucide-vue-next'
 
 const { data: usuarios, pending, refresh } = await useFetch(
@@ -147,21 +148,135 @@ const filteredUsuarios = computed(() => {
   const status = statusFilter.value
   
   return usuarios.value.filter(u => {
-    // Lógica de Busca
     const nome = u.acf?.nome?.toLowerCase() || ''
     const email = u.acf?.email?.toLowerCase() || ''
     const cpf = u.acf?.cpf?.toLowerCase() || ''
     const id = String(u.id)
-    
     const matchesSearch = nome.includes(query) || email.includes(query) || cpf.includes(query) || id.includes(query)
-    
-    // Lógica de Status (Placeholder - assumindo que a API pode retornar um status futuramente)
-    // Para efeito de demonstração, todos são considerados 'ativos' se a API não retornar status
     const matchesStatus = status === 'todos' || status === 'ativo' 
-    
     return matchesSearch && matchesStatus
   })
 })
+
+// ─── EDIÇÃO ──────────────────────────────────────────────
+const isEditModalOpen = ref(false)
+const isEditing = ref(false)
+const editingUser = ref(null)
+const editFileInput = ref(null)
+const editSelectedFile = ref(null)
+const editImagePreview = ref(null)
+const editForm = ref({
+  nome: '',
+  email: '',
+  cpf: '',
+  dataNascimento: '',
+  status: 'ativo'
+})
+
+const openEditModal = (user) => {
+  editingUser.value = user
+  editForm.value = {
+    nome: user.acf?.nome || '',
+    email: user.acf?.email || '',
+    cpf: user.acf?.cpf || '',
+    dataNascimento: user.acf?.data_de_nascimento || '',
+    status: user.acf?.status || 'ativo'
+  }
+  editImagePreview.value = user.acf?.imagem?.url || null
+  editSelectedFile.value = null
+  isEditModalOpen.value = true
+}
+
+const triggerEditFileInput = () => editFileInput.value?.click()
+
+const onEditFileChange = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  editSelectedFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => { editImagePreview.value = e.target.result }
+  reader.readAsDataURL(file)
+}
+
+const handleEdit = async () => {
+  if (!editingUser.value || isEditing.value) return
+  isEditing.value = true
+
+  try {
+    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
+    let imageId = editingUser.value.acf?.imagem?.id || null
+
+    // Upload de nova imagem se selecionada
+    if (editSelectedFile.value) {
+      const formData = new FormData()
+      formData.append('file', editSelectedFile.value)
+      formData.append('title', `Avatar ${editForm.value.nome}`)
+      const mediaResponse = await $fetch('http://localhost:8000/wp-json/wp/v2/media', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader },
+        body: formData
+      })
+      imageId = mediaResponse.id
+    }
+
+    const formattedDate = editForm.value.dataNascimento
+      ? editForm.value.dataNascimento.replace(/-/g, '')
+      : ''
+
+    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${editingUser.value.id}`, {
+      method: 'POST',
+      headers: { 'Authorization': authHeader },
+      body: {
+        title: editForm.value.nome,
+        acf: {
+          nome: editForm.value.nome,
+          email: editForm.value.email,
+          cpf: editForm.value.cpf,
+          data_de_nascimento: formattedDate,
+          imagem: imageId
+        }
+      }
+    })
+
+    isEditModalOpen.value = false
+    await refresh()
+  } catch (error) {
+    console.error('Erro ao editar usuário:', error)
+    alert('Erro ao editar. Verifique o console.')
+  } finally {
+    isEditing.value = false
+  }
+}
+
+// ─── EXCLUSÃO ────────────────────────────────────────────
+const isDeleteModalOpen = ref(false)
+const isDeleting = ref(false)
+const deletingUser = ref(null)
+
+const openDeleteModal = (user) => {
+  deletingUser.value = user
+  isDeleteModalOpen.value = true
+}
+
+const handleDelete = async () => {
+  if (!deletingUser.value || isDeleting.value) return
+  isDeleting.value = true
+
+  try {
+    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
+    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${deletingUser.value.id}?force=true`, {
+      method: 'DELETE',
+      headers: { 'Authorization': authHeader }
+    })
+    isDeleteModalOpen.value = false
+    await refresh()
+  } catch (error) {
+    console.error('Erro ao excluir:', error)
+    alert('Erro ao excluir. Verifique o console.')
+  } finally {
+    isDeleting.value = false
+  }
+}
 </script>
 
 <template>
@@ -298,6 +413,24 @@ const filteredUsuarios = computed(() => {
             <!-- Animation Backdrop (Grid Only) -->
             <div v-if="viewMode === 'grid'" class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
 
+            <!-- Ações rápidas (aparecem no hover) -->
+            <div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
+              <button
+                @click.stop="openEditModal(user)"
+                class="p-2 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl shadow-md shadow-slate-200/60 border border-slate-100 transition-all"
+                title="Editar"
+              >
+                <Pencil class="w-3.5 h-3.5" />
+              </button>
+              <button
+                @click.stop="openDeleteModal(user)"
+                class="p-2 bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl shadow-md shadow-slate-200/60 border border-slate-100 transition-all"
+                title="Excluir"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <!-- Avatar -->
             <div :class="['relative shrink-0', viewMode === 'grid' ? 'mb-6' : '']">
               <div class="absolute inset-0 bg-indigo-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
@@ -351,9 +484,23 @@ const filteredUsuarios = computed(() => {
             </div>
 
             <!-- Action Button -->
-            <div :class="['shrink-0', viewMode === 'grid' ? 'mt-8 w-full' : 'ml-auto']">
-              <button class="px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200">
+            <div :class="['shrink-0', viewMode === 'grid' ? 'mt-8 w-full flex gap-2' : 'ml-auto flex gap-2']">
+              <button class="flex-1 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200">
                 {{ viewMode === 'grid' ? 'Ver Perfil' : 'Detalhes' }}
+              </button>
+              <button
+                @click="openEditModal(user)"
+                class="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl border border-slate-200 transition-all"
+                title="Editar"
+              >
+                <Pencil class="w-4 h-4" />
+              </button>
+              <button
+                @click="openDeleteModal(user)"
+                class="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl border border-slate-200 transition-all"
+                title="Excluir"
+              >
+                <Trash2 class="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -561,6 +708,131 @@ const filteredUsuarios = computed(() => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ─── Modal de Edição ─────────────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="isEditModalOpen" class="fixed inset-0 z-[101] flex items-center justify-center p-4">
+          <div @click="isEditModalOpen = false" class="absolute inset-0 bg-slate-900/40 backdrop-blur-md"></div>
+          <div class="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
+            <!-- Header -->
+            <div class="px-8 pt-8 pb-4 flex items-center justify-between">
+              <div>
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight">Editar <span class="text-indigo-600">Usuário</span></h2>
+                <p class="text-slate-400 text-sm font-medium mt-1">Atualize as informações de <span class="font-semibold text-slate-600">{{ editingUser?.acf?.nome || 'Membro' }}</span></p>
+              </div>
+              <button @click="isEditModalOpen = false" class="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+
+            <!-- Form -->
+            <form @submit.prevent="handleEdit" class="p-8 pt-4 max-h-[70vh] overflow-y-auto space-y-5 custom-scrollbar">
+              
+              <!-- Foto de Perfil -->
+              <div class="space-y-2">
+                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Foto de Perfil</label>
+                <input ref="editFileInput" type="file" accept="image/*" class="hidden" @change="onEditFileChange" />
+                <div @click="triggerEditFileInput" class="relative h-[100px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group overflow-hidden flex flex-col items-center justify-center gap-2">
+                  <div v-if="editImagePreview" class="absolute inset-0">
+                    <img :src="editImagePreview" class="w-full h-full object-cover" />
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera class="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  <template v-else>
+                    <div class="p-2 bg-white rounded-xl shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                      <ImageIcon class="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Clique para alterar</span>
+                  </template>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Nome -->
+                <div class="space-y-2">
+                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Nome Completo</label>
+                  <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
+                    </div>
+                    <input v-model="editForm.nome" type="text" required placeholder="Nome completo" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
+                  </div>
+                </div>
+
+                <!-- Email -->
+                <div class="space-y-2">
+                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
+                  <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
+                    </div>
+                    <input v-model="editForm.email" type="email" required placeholder="email@exemplo.com" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
+                  </div>
+                </div>
+
+                <!-- CPF -->
+                <div class="space-y-2">
+                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">CPF</label>
+                  <div class="relative group">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FileText class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
+                    </div>
+                    <input v-model="editForm.cpf" type="text" placeholder="000.000.000-00" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
+                  </div>
+                </div>
+
+                <!-- Data de Nascimento -->
+                <div class="space-y-2">
+                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Data de Nascimento</label>
+                  <input v-model="editForm.dataNascimento" type="date" class="block w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="flex items-center gap-4 pt-6 mt-2 border-t border-slate-50">
+                <button type="button" @click="isEditModalOpen = false" class="flex-1 px-6 py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold rounded-2xl transition-all active:scale-95">
+                  Cancelar
+                </button>
+                <button type="submit" :disabled="isEditing" :class="['flex-[2] px-6 py-4 font-bold rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3', isEditing ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20']">
+                  <Loader2 v-if="isEditing" class="w-5 h-5 animate-spin text-white/50" />
+                  {{ isEditing ? 'Salvando...' : 'Salvar Alterações' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ─── Modal de Confirmação de Exclusão ─────────────────────── -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="isDeleteModalOpen" class="fixed inset-0 z-[102] flex items-center justify-center p-4">
+          <div @click="isDeleteModalOpen = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+          <div class="relative w-full max-w-sm bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden p-8 text-center">
+            <!-- Ícone de aviso -->
+            <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
+              <Trash2 class="w-8 h-8 text-red-500" />
+            </div>
+            <h3 class="text-2xl font-black text-slate-900 mb-2">Excluir Usuário</h3>
+            <p class="text-slate-500 text-sm mb-1">Você está prestes a excluir permanentemente:</p>
+            <p class="text-indigo-600 font-bold text-lg mb-6">{{ deletingUser?.acf?.nome || `ID #${deletingUser?.id}` }}</p>
+            <p class="text-xs text-red-400 font-medium bg-red-50 rounded-xl px-4 py-2 mb-6">⚠️ Esta ação não pode ser desfeita.</p>
+            <div class="flex gap-3">
+              <button @click="isDeleteModalOpen = false" class="flex-1 px-5 py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-2xl transition-all active:scale-95 text-sm">
+                Cancelar
+              </button>
+              <button @click="handleDelete" :disabled="isDeleting" :class="['flex-[2] px-5 py-3.5 font-bold rounded-2xl transition-all active:scale-95 text-sm flex items-center justify-center gap-2', isDeleting ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20']">
+                <Loader2 v-if="isDeleting" class="w-4 h-4 animate-spin" />
+                {{ isDeleting ? 'Excluindo...' : 'Sim, excluir' }}
+              </button>
+            </div>
           </div>
         </div>
       </Transition>
