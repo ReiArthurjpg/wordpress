@@ -2,14 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { 
   User, Mail, Lock, LogIn, UserPlus, ArrowRight, ArrowLeft, 
-  Globe, Zap, Camera, Calendar, CreditCard, Loader2, AlertCircle
+  Globe, Zap, Camera, Calendar, CreditCard, Loader2
 } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const isLogin = ref(true)
 const fileInputRef = ref(null)
 const isSubmitting = ref(false)
-const errorMessage = ref('')
-const successMessage = ref('')
 
 const loginData = ref({ email: '', password: '' })
 const registerData = ref({ 
@@ -31,13 +30,11 @@ onMounted(() => {
 
 const handleLoginSubmit = async () => {
   if (!loginData.value.email || !loginData.value.password) {
-    errorMessage.value = 'Preencha todos os campos.'
+    toast.error('Preencha todos os campos.')
     return
   }
   
   isSubmitting.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
   
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -57,13 +54,14 @@ const handleLoginSubmit = async () => {
       // Login Success
       const authCookie = useCookie('auth_user')
       authCookie.value = user.id
+      toast.success('Login realizado com sucesso!')
       navigateTo('/dashboard')
     } else {
-      errorMessage.value = 'Credenciais inválidas. Tente novamente.'
+      toast.error('Credenciais inválidas. Tente novamente.')
     }
   } catch (error) {
     console.error('Login error:', error)
-    errorMessage.value = 'Ocorreu um erro no servidor. Tente mais tarde.'
+    toast.error('Erro de conexão. Verifique o servidor.')
   } finally {
     isSubmitting.value = false
   }
@@ -71,18 +69,15 @@ const handleLoginSubmit = async () => {
 
 const handleRegisterSubmit = async () => {
   if (registerData.value.password !== registerData.value.confirmPassword) {
-    errorMessage.value = 'As senhas não coincidem!'
+    toast.error('As senhas não coincidem!')
     return
   }
   
   isSubmitting.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
 
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
     
-    // Formatação da data para o formato esperado pelo ACF (YYYYMMDD)
     const formattedDate = registerData.value.birthDate 
       ? registerData.value.birthDate.replace(/-/g, '') 
       : ''
@@ -109,16 +104,15 @@ const handleRegisterSubmit = async () => {
     })
 
     if (response && response.id) {
-      successMessage.value = 'Cadastro realizado! Agora faça login.'
+      toast.success('Cadastro realizado com sucesso! Faça login.')
       isLogin.value = true
-      // Reset form
       registerData.value = { 
         name: '', email: '', cpf: '', birthDate: '', password: '', confirmPassword: '', profileImage: null
       }
     }
   } catch (error) {
     console.error('Register error:', error)
-    errorMessage.value = 'Erro ao cadastrar. Verifique a API.'
+    toast.error('Erro ao cadastrar usuário.')
   } finally {
     isSubmitting.value = false
   }
@@ -146,14 +140,6 @@ const handleImageChange = (e) => {
         :class="isLogin ? 'md:translate-x-0' : 'md:translate-x-full'"
       >
         <div :key="isLogin ? 'login' : 'register'" class="animate-in fade-in slide-in-from-bottom-8 duration-700">
-          
-          <!-- Alerts -->
-          <div v-if="errorMessage" class="mb-4 p-4 rounded-xl bg-red-50 text-red-600 border border-red-100 text-sm font-bold flex items-center gap-2">
-            <AlertCircle class="w-5 h-5" /> {{ errorMessage }}
-          </div>
-          <div v-if="successMessage" class="mb-4 p-4 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 text-sm font-bold">
-            {{ successMessage }}
-          </div>
 
           <template v-if="isLogin">
             <div class="mb-10 text-center md:text-left">
@@ -348,7 +334,7 @@ const handleImageChange = (e) => {
           </p>
 
           <button
-            @click="isLogin = !isLogin; errorMessage = ''; successMessage = ''"
+            @click="isLogin = !isLogin"
             type="button"
             class="group relative inline-flex items-center gap-3 px-12 py-4 bg-white/5 hover:bg-white/10 border border-white/20 rounded-full text-white font-semibold transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 cursor-pointer"
           >

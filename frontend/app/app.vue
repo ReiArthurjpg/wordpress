@@ -1,5 +1,10 @@
+<script setup>
+import { Toaster } from 'vue-sonner'
+</script>
+
 <template>
   <NuxtPage />
+  <Toaster position="top-right" richColors />
 </template>
 
 <style>
