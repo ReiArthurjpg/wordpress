@@ -40,7 +40,12 @@ const handleLoginSubmit = async () => {
   successMessage.value = ''
   
   try {
-    const response = await $fetch('http://localhost:8000/wp-json/wp/v2/usuarios')
+    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
+    const response = await $fetch('http://localhost:8000/wp-json/wp/v2/usuarios', {
+      headers: {
+        'Authorization': authHeader
+      }
+    })
     
     // Find matching user
     const user = response.find(u => 
@@ -75,19 +80,31 @@ const handleRegisterSubmit = async () => {
   successMessage.value = ''
 
   try {
+    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
+    
+    // Formatação da data para o formato esperado pelo ACF (YYYYMMDD)
+    const formattedDate = registerData.value.birthDate 
+      ? registerData.value.birthDate.replace(/-/g, '') 
+      : ''
+
     const newUsuario = {
       title: registerData.value.name,
       status: 'publish',
       acf: {
+        nome: registerData.value.name,
         email: registerData.value.email,
         senha: registerData.value.password,
         cpf: registerData.value.cpf,
-        data_nascimento: registerData.value.birthDate
+        data_de_nascimento: formattedDate
       }
     }
 
     const response = await $fetch('http://localhost:8000/wp-json/wp/v2/usuarios', {
       method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
       body: newUsuario
     })
 
