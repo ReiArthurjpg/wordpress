@@ -4,7 +4,6 @@ import {
   User, Mail, Lock, LogIn, UserPlus, ArrowRight, ArrowLeft, 
   Globe, Zap, Camera, Calendar, CreditCard, Loader2
 } from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
 
 const isLogin = ref(true)
 const fileInputRef = ref(null)
@@ -28,9 +27,11 @@ onMounted(() => {
   }
 })
 
+const { $toast } = useNuxtApp()
+
 const handleLoginSubmit = async () => {
   if (!loginData.value.email || !loginData.value.password) {
-    toast.error('Preencha todos os campos.')
+    $toast?.error('Preencha todos os campos.')
     return
   }
   
@@ -44,24 +45,23 @@ const handleLoginSubmit = async () => {
       }
     })
     
-    // Find matching user
+    console.log('API Response:', response)
     const user = response.find(u => 
       u.acf?.email === loginData.value.email && 
       u.acf?.senha === loginData.value.password
     )
     
     if (user) {
-      // Login Success
       const authCookie = useCookie('auth_user')
       authCookie.value = user.id
-      toast.success('Login realizado com sucesso!')
+      $toast?.success('Login realizado com sucesso!')
       navigateTo('/dashboard')
     } else {
-      toast.error('Credenciais inválidas. Tente novamente.')
+      $toast?.error('Credenciais inválidas. Tente novamente.')
     }
   } catch (error) {
     console.error('Login error:', error)
-    toast.error('Erro de conexão. Verifique o servidor.')
+    $toast?.error('Erro de conexão. Verifique o servidor.')
   } finally {
     isSubmitting.value = false
   }
@@ -69,7 +69,7 @@ const handleLoginSubmit = async () => {
 
 const handleRegisterSubmit = async () => {
   if (registerData.value.password !== registerData.value.confirmPassword) {
-    toast.error('As senhas não coincidem!')
+    $toast?.error('As senhas não coincidem!')
     return
   }
   
@@ -77,7 +77,6 @@ const handleRegisterSubmit = async () => {
 
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
-    
     const formattedDate = registerData.value.birthDate 
       ? registerData.value.birthDate.replace(/-/g, '') 
       : ''
@@ -104,7 +103,7 @@ const handleRegisterSubmit = async () => {
     })
 
     if (response && response.id) {
-      toast.success('Cadastro realizado com sucesso! Faça login.')
+      $toast?.success('Cadastro realizado com sucesso! Faça login.')
       isLogin.value = true
       registerData.value = { 
         name: '', email: '', cpf: '', birthDate: '', password: '', confirmPassword: '', profileImage: null
@@ -112,7 +111,7 @@ const handleRegisterSubmit = async () => {
     }
   } catch (error) {
     console.error('Register error:', error)
-    toast.error('Erro ao cadastrar usuário.')
+    $toast?.error('Erro ao cadastrar usuário.')
   } finally {
     isSubmitting.value = false
   }

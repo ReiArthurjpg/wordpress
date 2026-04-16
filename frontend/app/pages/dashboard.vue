@@ -22,7 +22,6 @@ import {
   KeyRound,
   LogOut
 } from 'lucide-vue-next'
-import { toast } from 'vue-sonner'
 
 onMounted(() => {
   const authCookie = useCookie('auth_user')
@@ -34,7 +33,8 @@ onMounted(() => {
 const handleLogout = () => {
   const authCookie = useCookie('auth_user')
   authCookie.value = null
-  toast.success('Você saiu do sistema.')
+  const { $toast } = useNuxtApp()
+  $toast?.success('Você saiu do sistema.')
   navigateTo('/')
 }
 
@@ -147,13 +147,13 @@ const handleSubmit = async () => {
       imagem: '', 
       status: 'ativo' 
     }
-    selectedFile.value = null
-    imagePreview.value = null
-    toast.success('Usuário criado com sucesso!')
+    const { $toast } = useNuxtApp()
+    $toast?.success('Usuário criado com sucesso!')
     await refresh()
   } catch (error) {
     console.error('Erro ao criar usuário:', error)
-    toast.error('Erro ao criar usuário. Verifique o console.')
+    const { $toast } = useNuxtApp()
+    $toast?.error('Erro ao criar usuário. Verifique o console.')
   } finally {
     isSubmitting.value = false
   }
@@ -279,11 +279,13 @@ const handleEdit = async () => {
     })
 
     isEditModalOpen.value = false
-    toast.success('Usuário editado com sucesso!')
+    const { $toast } = useNuxtApp()
+    $toast?.success('Usuário editado com sucesso!')
     await refresh()
   } catch (error) {
     console.error('Erro ao editar usuário:', error)
-    toast.error('Erro ao editar usuário.')
+    const { $toast } = useNuxtApp()
+    $toast?.error('Erro ao editar usuário.')
   } finally {
     isEditing.value = false
   }
@@ -310,11 +312,13 @@ const handleDelete = async () => {
       headers: { 'Authorization': authHeader }
     })
     isDeleteModalOpen.value = false
-    toast.success('Usuário excluído com sucesso!')
+    const { $toast } = useNuxtApp()
+    $toast?.success('Usuário excluído com sucesso!')
     await refresh()
   } catch (error) {
     console.error('Erro ao excluir:', error)
-    toast.error('Erro ao excluir usuário.')
+    const { $toast } = useNuxtApp()
+    $toast?.error('Erro ao excluir usuário.')
   } finally {
     isDeleting.value = false
   }

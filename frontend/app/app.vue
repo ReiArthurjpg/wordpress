@@ -1,10 +1,12 @@
 <script setup>
-import { Toaster } from 'vue-sonner'
 </script>
 
 <template>
   <NuxtPage />
-  <Toaster position="top-right" richColors />
+  <ClientOnly>
+    <!-- O componente Toaster agora é injetado pelo plugin .client.js -->
+    <Toaster position="top-right" richColors />
+  </ClientOnly>
 </template>
 
 <style>
