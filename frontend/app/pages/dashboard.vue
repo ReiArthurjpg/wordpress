@@ -42,6 +42,12 @@ const { data: usuarios, pending, refresh } = await useFetch(
   'http://localhost:8000/wp-json/wp/v2/usuarios'
 )
 
+const appLoading = useState('appLoading')
+
+watch(pending, (val) => {
+  appLoading.value = val
+}, { immediate: true })
+
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
 const newUsuario = ref({
@@ -88,6 +94,7 @@ const isFormValid = computed(() => {
 const handleSubmit = async () => {
   if (!isFormValid.value || isSubmitting.value) return
   isSubmitting.value = true
+  appLoading.value = true
   
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -156,6 +163,7 @@ const handleSubmit = async () => {
     $toast?.error('Erro ao criar usuário. Verifique o console.')
   } finally {
     isSubmitting.value = false
+    appLoading.value = false
   }
 }
 
@@ -241,6 +249,7 @@ const onEditFileChange = (e) => {
 const handleEdit = async () => {
   if (!editingUser.value || isEditing.value) return
   isEditing.value = true
+  appLoading.value = true
 
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -288,6 +297,7 @@ const handleEdit = async () => {
     $toast?.error('Erro ao editar usuário.')
   } finally {
     isEditing.value = false
+    appLoading.value = false
   }
 }
 
@@ -304,6 +314,7 @@ const openDeleteModal = (user) => {
 const handleDelete = async () => {
   if (!deletingUser.value || isDeleting.value) return
   isDeleting.value = true
+  appLoading.value = true
 
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -321,6 +332,7 @@ const handleDelete = async () => {
     $toast?.error('Erro ao excluir usuário.')
   } finally {
     isDeleting.value = false
+    appLoading.value = false
   }
 }
 </script>
@@ -436,19 +448,8 @@ const handleDelete = async () => {
 
       <!-- Sessão 3: Dados / Grid-List -->
 
-      <!-- Loading State -->
-      <div v-if="pending" :class="viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8' : 'flex flex-col gap-4'">
-        <div v-for="i in 6" :key="i" class="bg-white/60 rounded-3xl p-6 shadow-sm animate-pulse flex items-center gap-5">
-           <div class="w-16 h-16 rounded-2xl bg-slate-200 flex-shrink-0"></div>
-           <div class="flex-1 space-y-3">
-             <div class="h-4 bg-slate-200 rounded w-1/2"></div>
-             <div class="h-3 bg-slate-200 rounded w-3/4"></div>
-           </div>
-        </div>
-      </div>
-
       <!-- Content Area with Transition -->
-      <div v-else-if="filteredUsuarios.length > 0">
+      <div v-if="filteredUsuarios.length > 0">
         <TransitionGroup 
           tag="div" 
           name="list"

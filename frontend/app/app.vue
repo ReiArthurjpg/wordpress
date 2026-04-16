@@ -1,7 +1,9 @@
 <script setup>
+const appLoading = useState('appLoading', () => false)
 </script>
 
 <template>
+  <AppLoading :active="appLoading" />
   <NuxtPage />
   <ClientOnly>
     <!-- O componente Toaster agora é injetado pelo plugin .client.js -->

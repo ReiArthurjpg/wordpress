@@ -8,6 +8,7 @@ import {
 const isLogin = ref(true)
 const fileInputRef = ref(null)
 const isSubmitting = ref(false)
+const appLoading = useState('appLoading')
 const showPassword = ref(false)
 const showRegisterPassword = ref(false)
 const showRegisterConfirmPassword = ref(false)
@@ -39,6 +40,7 @@ const handleLoginSubmit = async () => {
   }
   
   isSubmitting.value = true
+  appLoading.value = true
   
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -67,6 +69,7 @@ const handleLoginSubmit = async () => {
     $toast?.error('Erro de conexão. Verifique o servidor.')
   } finally {
     isSubmitting.value = false
+    appLoading.value = false
   }
 }
 
@@ -77,6 +80,7 @@ const handleRegisterSubmit = async () => {
   }
   
   isSubmitting.value = true
+  appLoading.value = true
 
   try {
     const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
@@ -117,6 +121,7 @@ const handleRegisterSubmit = async () => {
     $toast?.error('Erro ao cadastrar usuário.')
   } finally {
     isSubmitting.value = false
+    appLoading.value = false
   }
 }
 
@@ -193,11 +198,8 @@ const handleImageChange = (e) => {
                 :disabled="isSubmitting"
                 class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-xl transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:active:scale-100"
               >
-                <Loader2 v-if="isSubmitting" class="w-5 h-5 animate-spin" />
-                <template v-else>
-                  Entrar na plataforma
-                  <LogIn class="w-5 h-5" />
-                </template>
+                Entrar na plataforma
+                <LogIn class="w-5 h-5" />
               </button>
             </form>
           </template>
@@ -323,11 +325,8 @@ const handleImageChange = (e) => {
                 :disabled="isSubmitting"
                 class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 mt-4 disabled:opacity-70 disabled:active:scale-100"
               >
-                <Loader2 v-if="isSubmitting" class="w-5 h-5 animate-spin" />
-                <template v-else>
-                  Finalizar Cadastro
-                  <UserPlus class="w-5 h-5" />
-                </template>
+                Finalizar Cadastro
+                <UserPlus class="w-5 h-5" />
               </button>
             </form>
           </template>
