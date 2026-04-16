@@ -14,7 +14,12 @@ import {
   Camera,
   X,
   Pencil,
-  Trash2
+  Trash2,
+  Calendar,
+  ShieldCheck,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-vue-next'
 
 const { data: usuarios, pending, refresh } = await useFetch(
@@ -158,7 +163,25 @@ const filteredUsuarios = computed(() => {
   })
 })
 
-// ─── EDIÇÃO ──────────────────────────────────────────────
+// ─── PERFIL (VER MODAL) ──────────────────────────────────
+const isProfileModalOpen = ref(false)
+const profileUser = ref(null)
+const showPassword = ref(false)
+
+const openProfileModal = (user) => {
+  profileUser.value = user
+  isProfileModalOpen.value = true
+  showPassword.value = false
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A'
+  // Aceita YYYYMMDD ou YYYY-MM-DD
+  const s = String(dateStr).replace(/-/g, '')
+  if (s.length !== 8) return dateStr
+  return `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)}`
+}
+
 const isEditModalOpen = ref(false)
 const isEditing = ref(false)
 const editingUser = ref(null)
@@ -485,7 +508,10 @@ const handleDelete = async () => {
 
             <!-- Action Button -->
             <div :class="['shrink-0', viewMode === 'grid' ? 'mt-8 w-full flex gap-2' : 'ml-auto flex gap-2']">
-              <button class="flex-1 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200">
+              <button
+                @click="openProfileModal(user)"
+                class="flex-1 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200"
+              >
                 {{ viewMode === 'grid' ? 'Ver Perfil' : 'Detalhes' }}
               </button>
               <button
@@ -832,6 +858,153 @@ const handleDelete = async () => {
                 <Loader2 v-if="isDeleting" class="w-4 h-4 animate-spin" />
                 {{ isDeleting ? 'Excluindo...' : 'Sim, excluir' }}
               </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- ─── Modal de Perfil Completo ─────────────────────────────── -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="isProfileModalOpen" class="fixed inset-0 z-[103] flex items-center justify-center p-4">
+          <div @click="isProfileModalOpen = false" class="absolute inset-0 bg-slate-900/50 backdrop-blur-md"></div>
+
+          <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
+            
+            <!-- Banner de topo com gradiente -->
+            <div class="h-32 bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-400 relative">
+              <div class="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_left,_white,_transparent)]"></div>
+              <!-- Botão fechar -->
+              <button @click="isProfileModalOpen = false" class="absolute top-4 right-4 p-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-2xl transition-all">
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+
+            <!-- Avatar sobreposto ao banner -->
+            <div class="px-8 pb-8">
+              <div class="-mt-12 mb-5 flex items-end justify-between">
+                <!-- Foto -->
+                <div class="relative">
+                  <img
+                    v-if="profileUser?.acf?.imagem"
+                    :src="profileUser.acf.imagem.url"
+                    class="w-24 h-24 rounded-2xl object-cover ring-4 ring-white shadow-xl"
+                  />
+                  <div v-else class="w-24 h-24 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 ring-4 ring-white shadow-xl flex items-center justify-center">
+                    <User class="w-12 h-12 text-slate-300" />
+                  </div>
+                  <span class="absolute -bottom-2 -right-2 inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-md">
+                    Ativo
+                  </span>
+                </div>
+                <!-- Ações rápidas no topo do modal -->
+                <div class="flex items-center gap-2 mt-12">
+                  <button
+                    @click="isProfileModalOpen = false; openEditModal(profileUser)"
+                    class="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold rounded-xl text-sm transition-all border border-indigo-100"
+                  >
+                    <Pencil class="w-3.5 h-3.5" />
+                    Editar
+                  </button>
+                  <button
+                    @click="isProfileModalOpen = false; openDeleteModal(profileUser)"
+                    class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                    Excluir
+                  </button>
+                </div>
+              </div>
+
+              <!-- Nome e ID -->
+              <div class="mb-8">
+                <h2 class="text-3xl font-black text-slate-900 tracking-tight">
+                  {{ profileUser?.acf?.nome || 'Sem nome' }}
+                </h2>
+                <p class="text-slate-400 text-sm font-medium mt-1">ID Membro: <span class="text-indigo-500 font-bold">#{{ profileUser?.id }}</span></p>
+              </div>
+
+              <!-- Dados em grid -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Email -->
+                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                    <Mail class="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">E-mail</p>
+                    <p class="text-slate-700 font-semibold text-sm truncate">{{ profileUser?.acf?.email || 'N/A' }}</p>
+                  </div>
+                </div>
+
+                <!-- CPF -->
+                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                    <FileText class="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">CPF</p>
+                    <p class="text-slate-700 font-semibold text-sm">{{ profileUser?.acf?.cpf || 'N/A' }}</p>
+                  </div>
+                </div>
+
+                <!-- Data de Nascimento -->
+                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                    <Calendar class="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Nascimento</p>
+                    <p class="text-slate-700 font-semibold text-sm">{{ formatDate(profileUser?.acf?.data_de_nascimento) }}</p>
+                  </div>
+                </div>
+
+                <!-- Status -->
+                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                    <ShieldCheck class="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Status</p>
+                    <p class="text-emerald-600 font-bold text-sm capitalize">{{ profileUser?.acf?.status || 'Ativo' }}</p>
+                  </div>
+                </div>
+
+                <!-- Senha -->
+                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 md:col-span-2">
+                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
+                    <KeyRound class="w-4 h-4 text-indigo-500" />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Senha</p>
+                    <div class="flex items-center gap-3">
+                      <p class="text-slate-700 font-semibold text-sm tracking-widest flex-1">
+                        {{ profileUser?.acf?.senha ? (showPassword ? profileUser.acf.senha : '••••••••••') : 'N/A' }}
+                      </p>
+                      <button
+                        v-if="profileUser?.acf?.senha"
+                        @click="showPassword = !showPassword"
+                        class="p-1.5 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 rounded-lg border border-slate-100 transition-all shrink-0"
+                        :title="showPassword ? 'Ocultar senha' : 'Revelar senha'"
+                      >
+                        <Eye v-if="!showPassword" class="w-3.5 h-3.5" />
+                        <EyeOff v-else class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Rodapé -->
+              <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
+                <p class="text-[11px] text-slate-300 font-medium">Cadastrado em: <span class="text-slate-400">{{ new Date(profileUser?.date).toLocaleDateString('pt-BR') }}</span></p>
+                <button @click="isProfileModalOpen = false" class="px-6 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl text-sm transition-all shadow-md active:scale-95">
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
