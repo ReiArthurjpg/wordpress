@@ -50,26 +50,35 @@ const handleLoginSubmit = async () => {
       }
     })
     
-    console.log('API Response:', response)
     const user = response.find(u => 
       u.acf?.email === loginData.value.email && 
       u.acf?.senha === loginData.value.password
     )
+
+    // Garante que o preloader apareça por pelo menos 1.5s para o efeito visual
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
-    if (user) {
-      const authCookie = useCookie('auth_user')
-      authCookie.value = user.id
-      $toast?.success('Login realizado com sucesso!')
-      navigateTo('/dashboard')
-    } else {
-      $toast?.error('Credenciais inválidas. Tente novamente.')
-    }
+    appLoading.value = false
+
+    // Aguarda o fade-out do preloader (0.5s) antes de prosseguir
+    setTimeout(() => {
+      if (user) {
+        const authCookie = useCookie('auth_user')
+        authCookie.value = user.id
+        $toast?.success('Login realizado com sucesso! Bem-vindo.')
+        navigateTo('/dashboard')
+      } else {
+        $toast?.error('Credenciais inválidas. Verifique seu e-mail e senha.')
+      }
+    }, 500)
   } catch (error) {
     console.error('Login error:', error)
-    $toast?.error('Erro de conexão. Verifique o servidor.')
+    appLoading.value = false
+    setTimeout(() => {
+      $toast?.error('Erro de conexão. Verifique se o servidor WordPress está ativo.')
+    }, 500)
   } finally {
     isSubmitting.value = false
-    appLoading.value = false
   }
 }
 
@@ -109,19 +118,27 @@ const handleRegisterSubmit = async () => {
       body: newUsuario
     })
 
-    if (response && response.id) {
-      $toast?.success('Cadastro realizado com sucesso! Faça login.')
-      isLogin.value = true
-      registerData.value = { 
-        name: '', email: '', cpf: '', birthDate: '', password: '', confirmPassword: '', profileImage: null
+    // Garante efeito visual do preload
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    appLoading.value = false
+
+    setTimeout(() => {
+      if (response && response.id) {
+        $toast?.success('Cadastro realizado com sucesso! Agora você pode entrar.')
+        isLogin.value = true
+        registerData.value = { 
+          name: '', email: '', cpf: '', birthDate: '', password: '', confirmPassword: '', profileImage: null
+        }
       }
-    }
+    }, 500)
   } catch (error) {
     console.error('Register error:', error)
-    $toast?.error('Erro ao cadastrar usuário.')
+    appLoading.value = false
+    setTimeout(() => {
+      $toast?.error('Erro ao cadastrar usuário. Tente novamente mais tarde.')
+    }, 500)
   } finally {
     isSubmitting.value = false
-    appLoading.value = false
   }
 }
 
