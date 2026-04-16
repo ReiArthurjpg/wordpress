@@ -2,12 +2,15 @@
 import { ref, onMounted } from 'vue'
 import { 
   User, Mail, Lock, LogIn, UserPlus, ArrowRight, ArrowLeft, 
-  Globe, Zap, Camera, Calendar, CreditCard, Loader2
+  Globe, Zap, Camera, Calendar, CreditCard, Loader2, Eye, EyeOff
 } from 'lucide-vue-next'
 
 const isLogin = ref(true)
 const fileInputRef = ref(null)
 const isSubmitting = ref(false)
+const showPassword = ref(false)
+const showRegisterPassword = ref(false)
+const showRegisterConfirmPassword = ref(false)
 
 const loginData = ref({ email: '', password: '' })
 const registerData = ref({ 
@@ -170,11 +173,18 @@ const handleImageChange = (e) => {
                   <Lock class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-600 transition-colors" />
                   <input
                     v-model="loginData.password"
-                    type="password"
+                    :type="showPassword ? 'text' : 'password'"
                     required
                     placeholder="••••••••"
-                    class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:bg-white outline-none transition-all text-slate-800"
+                    class="w-full pl-12 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:bg-white outline-none transition-all text-slate-800"
                   />
+                  <button 
+                    type="button"
+                    @click="showPassword = !showPassword"
+                    class="absolute border-none bg-none right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    <component :is="showPassword ? EyeOff : Eye" class="w-5 h-5" />
+                  </button>
                 </div>
               </div>
 
@@ -272,24 +282,38 @@ const handleImageChange = (e) => {
                     <Lock class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                     <input
                       v-model="registerData.password"
-                      type="password"
+                      :type="showRegisterPassword ? 'text' : 'password'"
                       required
                       placeholder="Senha"
-                      class="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none"
+                      class="w-full pl-12 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none"
                     />
+                    <button 
+                      type="button"
+                      @click="showRegisterPassword = !showRegisterPassword"
+                      class="absolute border-none bg-none right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                    >
+                      <component :is="showRegisterPassword ? EyeOff : Eye" class="w-4 h-4" />
+                    </button>
                   </div>
                   <div class="relative group">
                     <Lock class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                     <input
                       v-model="registerData.confirmPassword"
-                      type="password"
+                      :type="showRegisterConfirmPassword ? 'text' : 'password'"
                       required
                       placeholder="Confirmar"
-                      class="w-full pl-12 pr-4 py-3 bg-slate-50 border rounded-xl focus:ring-4 outline-none transition-all"
+                      class="w-full pl-12 pr-10 py-3 bg-slate-50 border rounded-xl focus:ring-4 outline-none transition-all"
                       :class="registerData.confirmPassword && registerData.password !== registerData.confirmPassword 
                         ? 'border-red-300 focus:ring-red-100 focus:border-red-500' 
                         : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-500'"
                     />
+                    <button 
+                      type="button"
+                      @click="showRegisterConfirmPassword = !showRegisterConfirmPassword"
+                      class="absolute border-none bg-none right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                    >
+                      <component :is="showRegisterConfirmPassword ? EyeOff : Eye" class="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               </div>
