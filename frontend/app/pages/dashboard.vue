@@ -1,27 +1,18 @@
 <script setup>
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { 
-  User, 
-  Mail, 
-  FileText, 
-  Search, 
-  Plus, 
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  LayoutGrid,
-  List,
-  Image as ImageIcon,
-  Camera,
-  X,
-  Pencil,
-  Trash2,
-  Calendar,
-  ShieldCheck,
-  Eye,
-  EyeOff,
-  KeyRound,
-  LogOut
+  User, Mail, Lock, LogIn, UserPlus, ArrowRight, ArrowLeft, 
+  Globe, Camera, Calendar, CreditCard, Search, Filter,
+  LayoutGrid, List, MoreVertical, Pencil, Trash2, Eye, LogOut,
+  ChevronDown, Settings, Zap, X, Upload, AlertTriangle, Save, Check, ExternalLink,
+  EyeOff, Plus, Edit2
 } from 'lucide-vue-next'
+
+const appLoading = useState('appLoading')
+const { $toast } = useNuxtApp()
+
+// Autenticação básica wp
+const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
 
 onMounted(() => {
   const authCookie = useCookie('auth_user')
@@ -33,1070 +24,573 @@ onMounted(() => {
 const handleLogout = () => {
   const authCookie = useCookie('auth_user')
   authCookie.value = null
-  const { $toast } = useNuxtApp()
   $toast?.success('Você saiu do sistema.')
   navigateTo('/')
 }
 
+// Fetch dos usuários do WP REST API
 const { data: usuarios, pending, refresh } = await useFetch(
   'http://localhost:8000/wp-json/wp/v2/usuarios'
 )
-
-const appLoading = useState('appLoading')
 
 watch(pending, (val) => {
   appLoading.value = val
 }, { immediate: true })
 
-const isModalOpen = ref(false)
-const isSubmitting = ref(false)
-const newUsuario = ref({
-  nome: '',
-  email: '',
-  senha: '',
-  confirmarSenha: '',
-  cpf: '',
-  dataNascimento: '',
-  imagem: '',
-  status: 'ativo'
-})
+// Variáveis de estado
+const viewMode = ref('list')
+const showProfileMenu = ref(false)
+const searchQuery = ref('')
+const greeting = ref('')
 
-const fileInput = ref(null)
-const selectedFile = ref(null)
-const imagePreview = ref(null)
-
-const triggerFileInput = () => {
-  fileInput.value?.click()
+const updateGreeting = () => {
+  const hours = new Date().getHours()
+  if (hours >= 5 && hours < 12) greeting.value = 'Bom dia'
+  else if (hours >= 12 && hours < 18) greeting.value = 'Boa tarde'
+  else greeting.value = 'Boa noite'
 }
 
-const onFileChange = (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-  
-  selectedFile.value = file
-  
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imagePreview.value = e.target.result
+let greetingInterval = null
+onMounted(() => {
+  updateGreeting()
+  greetingInterval = setInterval(updateGreeting, 60000)
+})
+
+onUnmounted(() => {
+  if (greetingInterval) clearInterval(greetingInterval)
+})
+
+// Computed para filtro
+const filteredUsuarios = computed(() => {
+  if (!usuarios.value) return []
+  return usuarios.value.filter(u => {
+    const nome = u.acf?.nome?.toLowerCase() || ''
+    const email = u.acf?.email?.toLowerCase() || ''
+    const q = searchQuery.value.toLowerCase()
+    return nome.includes(q) || email.includes(q)
+  })
+})
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A'
+  if (dateStr.length === 8 && !dateStr.includes('-')) {
+    return `${dateStr.substring(6,8)}/${dateStr.substring(4,6)}/${dateStr.substring(0,4)}`
   }
-  reader.readAsDataURL(file)
+  return dateStr.split('-').reverse().join('/')
 }
 
-const passwordMismatch = computed(() => {
-  return newUsuario.value.senha !== newUsuario.value.confirmarSenha && newUsuario.value.confirmarSenha !== ''
-})
+// Modais
+const isModalOpen = ref(false)
+const isEditModalOpen = ref(false)
+const isDeleteModalOpen = ref(false)
+const isViewModalOpen = ref(false)
 
-const isFormValid = computed(() => {
-  const u = newUsuario.value
-  return u.nome && u.email && u.senha && u.senha === u.confirmarSenha && u.cpf
-})
+const selectedUser = ref(null)
+const userToDelete = ref(null)
 
-const handleSubmit = async () => {
-  if (!isFormValid.value || isSubmitting.value) return
+const isSubmitting = ref(false)
+
+// Formulários
+const createForm = ref({ nome: '', email: '', cpf: '', data_de_nascimento: '', senha: '' })
+
+// Handlers de View
+const handleViewClick = (user) => {
+  selectedUser.value = user
+  isViewModalOpen.value = true
+}
+
+const handleEditClick = (user) => {
+  selectedUser.value = user
+  isViewModalOpen.value = false
+  isEditModalOpen.value = true
+}
+
+const handleDeleteClick = (user) => {
+  userToDelete.value = user
+  isDeleteModalOpen.value = true
+}
+
+// Operações CRUD Endpoints
+const handleCreateSubmit = async () => {
+  if (isSubmitting.value) return
+  
+  if (!createForm.value.nome || !createForm.value.email || !createForm.value.cpf || !createForm.value.senha) {
+    $toast?.error('Preencha os campos obrigatórios.')
+    return
+  }
+
   isSubmitting.value = true
   appLoading.value = true
   
   try {
-    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
-    let imageId = null
-    
-    // 1. Upload da imagem se houver
-    if (selectedFile.value) {
-      const formData = new FormData()
-      formData.append('file', selectedFile.value)
-      formData.append('title', `Avatar ${newUsuario.value.nome}`)
-      formData.append('status', 'publish')
-      
-      const mediaResponse = await $fetch('http://localhost:8000/wp-json/wp/v2/media', {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader
-        },
-        body: formData
-      })
-      imageId = mediaResponse.id
-    }
-
-    // Formatação da data para o formato esperado pelo ACF (YYYYMMDD)
-    const formattedDate = newUsuario.value.dataNascimento 
-      ? newUsuario.value.dataNascimento.replace(/-/g, '') 
+    const formattedDate = createForm.value.data_de_nascimento 
+      ? createForm.value.data_de_nascimento.replace(/-/g, '') 
       : ''
 
-    // 2. Criar usuário com o id da imagem
     await $fetch('http://localhost:8000/wp-json/wp/v2/usuarios', {
       method: 'POST',
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
       },
       body: {
-        title: newUsuario.value.nome,
+        title: createForm.value.nome,
         status: 'publish',
         acf: {
-          nome: newUsuario.value.nome,
-          email: newUsuario.value.email,
-          cpf: newUsuario.value.cpf,
+          nome: createForm.value.nome,
+          email: createForm.value.email,
+          cpf: createForm.value.cpf,
           data_de_nascimento: formattedDate,
-          senha: newUsuario.value.senha,
-          imagem: imageId
+          senha: createForm.value.senha
         }
       }
     })
     
-    // Sucesso
-    isModalOpen.value = false
-    newUsuario.value = { 
-      nome: '', 
-      email: '', 
-      senha: '', 
-      confirmarSenha: '', 
-      cpf: '', 
-      dataNascimento: '', 
-      imagem: '', 
-      status: 'ativo' 
-    }
-    const { $toast } = useNuxtApp()
     $toast?.success('Usuário criado com sucesso!')
+    isModalOpen.value = false
+    createForm.value = { nome: '', email: '', cpf: '', data_de_nascimento: '', senha: '' }
     await refresh()
   } catch (error) {
     console.error('Erro ao criar usuário:', error)
-    const { $toast } = useNuxtApp()
-    $toast?.error('Erro ao criar usuário. Verifique o console.')
+    $toast?.error('Erro ao criar usuário.')
   } finally {
     isSubmitting.value = false
     appLoading.value = false
   }
 }
 
-const searchQuery = ref('')
-const statusFilter = ref('todos')
-const viewMode = ref('grid')
-
-const filteredUsuarios = computed(() => {
-  if (!usuarios.value) return []
-  
-  const query = searchQuery.value.toLowerCase()
-  const status = statusFilter.value
-  
-  return usuarios.value.filter(u => {
-    const nome = u.acf?.nome?.toLowerCase() || ''
-    const email = u.acf?.email?.toLowerCase() || ''
-    const cpf = u.acf?.cpf?.toLowerCase() || ''
-    const id = String(u.id)
-    const matchesSearch = nome.includes(query) || email.includes(query) || cpf.includes(query) || id.includes(query)
-    const matchesStatus = status === 'todos' || status === 'ativo' 
-    return matchesSearch && matchesStatus
-  })
-})
-
-// ─── PERFIL (VER MODAL) ──────────────────────────────────
-const isProfileModalOpen = ref(false)
-const profileUser = ref(null)
-const showPassword = ref(false)
-
-const openProfileModal = (user) => {
-  profileUser.value = user
-  isProfileModalOpen.value = true
-  showPassword.value = false
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'N/A'
-  // Aceita YYYYMMDD ou YYYY-MM-DD
-  const s = String(dateStr).replace(/-/g, '')
-  if (s.length !== 8) return dateStr
-  return `${s.slice(6,8)}/${s.slice(4,6)}/${s.slice(0,4)}`
-}
-
-const isEditModalOpen = ref(false)
-const isEditing = ref(false)
-const editingUser = ref(null)
-const editFileInput = ref(null)
-const editSelectedFile = ref(null)
-const editImagePreview = ref(null)
-const editForm = ref({
-  nome: '',
-  email: '',
-  cpf: '',
-  dataNascimento: '',
-  status: 'ativo'
-})
-
-const openEditModal = (user) => {
-  editingUser.value = user
-  editForm.value = {
-    nome: user.acf?.nome || '',
-    email: user.acf?.email || '',
-    cpf: user.acf?.cpf || '',
-    dataNascimento: user.acf?.data_de_nascimento || '',
-    status: user.acf?.status || 'ativo'
-  }
-  editImagePreview.value = user.acf?.imagem?.url || null
-  editSelectedFile.value = null
-  isEditModalOpen.value = true
-}
-
-const triggerEditFileInput = () => editFileInput.value?.click()
-
-const onEditFileChange = (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-  editSelectedFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => { editImagePreview.value = e.target.result }
-  reader.readAsDataURL(file)
-}
-
-const handleEdit = async () => {
-  if (!editingUser.value || isEditing.value) return
-  isEditing.value = true
+const handleEditSubmit = async () => {
+  if (isSubmitting.value) return
+  isSubmitting.value = true
   appLoading.value = true
 
   try {
-    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
-    let imageId = editingUser.value.acf?.imagem?.id || null
+    const formattedDate = selectedUser.value.acf.data_de_nascimento?.includes('-') 
+      ? selectedUser.value.acf.data_de_nascimento.replace(/-/g, '') 
+      : selectedUser.value.acf.data_de_nascimento
 
-    // Upload de nova imagem se selecionada
-    if (editSelectedFile.value) {
-      const formData = new FormData()
-      formData.append('file', editSelectedFile.value)
-      formData.append('title', `Avatar ${editForm.value.nome}`)
-      const mediaResponse = await $fetch('http://localhost:8000/wp-json/wp/v2/media', {
-        method: 'POST',
-        headers: { 'Authorization': authHeader },
-        body: formData
-      })
-      imageId = mediaResponse.id
-    }
-
-    const formattedDate = editForm.value.dataNascimento
-      ? editForm.value.dataNascimento.replace(/-/g, '')
-      : ''
-
-    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${editingUser.value.id}`, {
+    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${selectedUser.value.id}`, {
       method: 'POST',
       headers: { 'Authorization': authHeader },
       body: {
-        title: editForm.value.nome,
+        title: selectedUser.value.acf.nome,
         acf: {
-          nome: editForm.value.nome,
-          email: editForm.value.email,
-          cpf: editForm.value.cpf,
-          data_de_nascimento: formattedDate,
-          imagem: imageId
+          nome: selectedUser.value.acf.nome,
+          email: selectedUser.value.acf.email,
+          cpf: selectedUser.value.acf.cpf,
+          data_de_nascimento: formattedDate
         }
       }
     })
 
     isEditModalOpen.value = false
-    const { $toast } = useNuxtApp()
     $toast?.success('Usuário editado com sucesso!')
     await refresh()
   } catch (error) {
     console.error('Erro ao editar usuário:', error)
-    const { $toast } = useNuxtApp()
     $toast?.error('Erro ao editar usuário.')
   } finally {
-    isEditing.value = false
+    isSubmitting.value = false
     appLoading.value = false
   }
 }
 
-// ─── EXCLUSÃO ────────────────────────────────────────────
-const isDeleteModalOpen = ref(false)
-const isDeleting = ref(false)
-const deletingUser = ref(null)
-
-const openDeleteModal = (user) => {
-  deletingUser.value = user
-  isDeleteModalOpen.value = true
-}
-
-const handleDelete = async () => {
-  if (!deletingUser.value || isDeleting.value) return
-  isDeleting.value = true
+const confirmDelete = async () => {
+  if (isSubmitting.value || !userToDelete.value) return
+  isSubmitting.value = true
   appLoading.value = true
 
   try {
-    const authHeader = 'Basic ' + btoa('Arthur:GOMhOPKqrNfzTPKuCPyFln67')
-    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${deletingUser.value.id}?force=true`, {
+    await $fetch(`http://localhost:8000/wp-json/wp/v2/usuarios/${userToDelete.value.id}?force=true`, {
       method: 'DELETE',
       headers: { 'Authorization': authHeader }
     })
+    
     isDeleteModalOpen.value = false
-    const { $toast } = useNuxtApp()
+    userToDelete.value = null
     $toast?.success('Usuário excluído com sucesso!')
     await refresh()
   } catch (error) {
     console.error('Erro ao excluir:', error)
-    const { $toast } = useNuxtApp()
     $toast?.error('Erro ao excluir usuário.')
   } finally {
-    isDeleting.value = false
+    isSubmitting.value = false
     appLoading.value = false
   }
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-slate-100 via-white to-slate-50 p-6 md:p-12 font-sans selection:bg-indigo-100 selection:text-indigo-900 text-slate-800 relative">
+  <div class="min-h-screen bg-[#f8fafc] font-sans text-slate-900">
     
-    <!-- Logout Button -->
-    <div class="absolute top-6 right-6 md:top-12 md:right-12 z-10">
-      <button 
-        @click="handleLogout" 
-        class="flex items-center justify-center p-3 sm:px-6 sm:py-3 bg-white border border-slate-200/60 shadow-lg shadow-slate-200/40 hover:shadow-indigo-500/10 hover:border-indigo-100 text-slate-500 hover:text-red-500 font-bold rounded-2xl transition-all duration-300 group"
-      >
-        <LogOut class="w-5 h-5 sm:mr-2 group-hover:-translate-x-1 transition-transform" />
-        <span class="hidden sm:inline">Sair</span>
-      </button>
-    </div>
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-100 sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+            <Zap class="w-6 h-6 text-white fill-white" />
+          </div>
+        </div>
 
-    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <button 
+              @click="showProfileMenu = !showProfileMenu"
+              class="flex items-center gap-3 p-1.5 pr-3 hover:bg-slate-50 rounded-2xl transition-all border border-transparent hover:border-slate-100"
+            >
+              <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">JD</div>
+              <div class="hidden md:block text-left">
+                <p class="text-sm font-bold leading-none">John Doe</p>
+                <p class="text-xs text-slate-500 mt-1">john@empresa.com</p>
+              </div>
+              <ChevronDown :class="['w-4 h-4 text-slate-400 transition-transform', showProfileMenu ? 'rotate-180' : '']" />
+            </button>
+
+            <div v-if="showProfileMenu" class="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+              <div class="px-4 py-3 border-b border-slate-50 mb-1">
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sua Conta</p>
+              </div>
+              <button class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-slate-50 text-slate-700 transition-colors">
+                <User class="w-4 h-4" /> Perfil
+              </button>
+              <button class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-slate-50 text-slate-700 transition-colors">
+                <Settings class="w-4 h-4" /> Configurações
+              </button>
+              <div class="h-px bg-slate-50 my-1"></div>
+              <button @click="handleLogout" class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-red-50 text-red-600 transition-colors">
+                <LogOut class="w-4 h-4" /> Sair da conta
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
-      <!-- Sessão 1: Identificação -->
-      <section class="mb-12 text-center flex flex-col items-center pt-8 md:pt-0">
-        <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900">
-          Dashboard de <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-500">Usuários</span>
+      <!-- BOAS-VINDAS -->
+      <section class="mb-10 animate-in fade-in slide-in-from-left-6 duration-700">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+          {{ greeting }}, John Doe!
         </h1>
-        <p class="text-slate-500 mt-4 text-lg max-w-xl leading-relaxed">
-          Gerencie e visualize membros cadastrados com filtros inteligentes e interface de alta performance.
+        <p class="text-slate-500 mt-2 text-lg max-w-2xl leading-relaxed">
+          Gerencie sua base de usuários com facilidade. Explore os detalhes e realize ações rápidas.
         </p>
       </section>
 
-      <!-- Sessão 2: Ações e Filtros (Versão Compacta Premium) -->
-      <section class="mb-8 bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-        <!-- Detalhe de luz no topo -->
-        <div class="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent"></div>
-        
-        <!-- Área de Conteúdo -->
-        <div class="px-5 py-4 md:px-7 md:py-5">
-          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-            
-            <!-- Grupo de Filtros -->
-            <div class="flex flex-col md:flex-row gap-4 flex-1">
-              <!-- Input Busca -->
-              <div class="relative group flex-1 max-w-lg">
-                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
-                </div>
-                <input 
-                  v-model="searchQuery"
-                  type="text" 
-                  placeholder="Pesquisar por nome, email, CPF ou ID..."
-                  class="block w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl leading-5 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                >
-              </div>
-
-              <!-- Select Status -->
-              <div class="relative">
-                <select 
-                  v-model="statusFilter"
-                  class="px-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl text-slate-600 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all shadow-inner appearance-none cursor-pointer w-full md:w-44 pr-10"
-                >
-                  <option value="todos">Todos Status</option>
-                  <option value="ativo">Ativos</option>
-                  <option value="inativo">Inativos</option>
-                </select>
-                <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-            </div>
-
-            <!-- Grupo de Ações -->
-            <div class="flex items-center gap-4 justify-between lg:justify-end">
-              
-              <!-- View Toggle -->
-              <div class="flex items-center bg-slate-50/80 p-1 rounded-xl border border-slate-100">
-                <button 
-                  @click="viewMode = 'grid'"
-                  :class="['p-1.5 rounded-lg transition-all duration-300', viewMode === 'grid' ? 'bg-white text-indigo-600 shadow-md shadow-indigo-500/10' : 'text-slate-400 hover:text-slate-600']"
-                >
-                  <LayoutGrid class="w-4 h-4" />
-                </button>
-                <button 
-                  @click="viewMode = 'list'"
-                  :class="['p-1.5 rounded-lg transition-all duration-300', viewMode === 'list' ? 'bg-white text-indigo-600 shadow-md shadow-indigo-500/10' : 'text-slate-400 hover:text-slate-600']"
-                >
-                  <List class="w-4 h-4" />
-                </button>
-              </div>
-
-              <!-- Botão Adicionar -->
-              <button 
-                @click="isModalOpen = true"
-                class="relative flex shrink-0 items-center justify-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white rounded-xl font-bold transition-all duration-500 shadow-lg shadow-slate-900/10 group text-sm overflow-hidden"
-              >
-                <Plus class="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
-                Novo Usuário
-              </button>
-
+      <!-- CONTROLES -->
+      <section class="mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
+        <div class="bg-white p-4 rounded-[24px] border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div class="flex flex-1 flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div class="relative group w-full sm:w-80">
+              <Search class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-600 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Buscar nome ou e-mail..."
+                class="w-full pl-11 pr-4 py-2.5 bg-slate-50/50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-blue-50 focus:border-blue-500 outline-none transition-all text-sm"
+                v-model="searchQuery"
+              />
             </div>
           </div>
-        </div>
 
-        <!-- Rodapé do Card: Contador -->
-        <div class="px-5 py-1.5 md:px-7 bg-slate-50/50 flex items-center justify-between">
-          <div class="text-[12px] text-slate-400 font-medium">
-            Mostrando <span class="text-indigo-600 font-black">{{ filteredUsuarios.length }}</span> de <span class="text-slate-900 font-black">12</span> membros encontrados.
-          </div>
-          <div v-if="searchQuery" class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
-            Filtro Ativo
+          <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 pt-4 md:pt-0">
+            <div class="bg-slate-100/80 p-1 rounded-xl flex items-center">
+              <button @click="viewMode = 'grid'" :class="['p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><LayoutGrid class="w-4 h-4" /></button>
+              <button @click="viewMode = 'list'" :class="['p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><List class="w-4 h-4" /></button>
+            </div>
+            <button @click="isModalOpen = true" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95 text-sm whitespace-nowrap">
+              <UserPlus class="w-4 h-4" /> Novo Usuário
+            </button>
           </div>
         </div>
       </section>
 
-      <!-- Sessão 3: Dados / Grid-List -->
-
-      <!-- Content Area with Transition -->
-      <div v-if="filteredUsuarios.length > 0">
-        <TransitionGroup 
-          tag="div" 
-          name="list"
-          :class="[
-            viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8' 
-              : 'flex flex-col gap-4'
-          ]"
-        >
-          <div
-            v-for="user in filteredUsuarios"
-            :key="user.id"
-            :class="[
-              'group relative bg-white/95 border border-slate-200/80 transition-all duration-500 overflow-hidden shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1',
-              viewMode === 'grid' 
-                ? 'rounded-[2rem] p-8 flex flex-col items-center text-center' 
-                : 'rounded-2xl p-5 flex flex-col md:flex-row md:items-center gap-6'
-            ]"
-          >
-            <!-- Animation Backdrop (Grid Only) -->
-            <div v-if="viewMode === 'grid'" class="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors"></div>
-
-            <!-- Ações rápidas (aparecem no hover) -->
-            <div class="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
-              <button
-                @click.stop="openEditModal(user)"
-                class="p-2 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl shadow-md shadow-slate-200/60 border border-slate-100 transition-all"
-                title="Editar"
-              >
-                <Pencil class="w-3.5 h-3.5" />
-              </button>
-              <button
-                @click.stop="openDeleteModal(user)"
-                class="p-2 bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl shadow-md shadow-slate-200/60 border border-slate-100 transition-all"
-                title="Excluir"
-              >
-                <Trash2 class="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <!-- Avatar -->
-            <div :class="['relative shrink-0', viewMode === 'grid' ? 'mb-6' : '']">
-              <div class="absolute inset-0 bg-indigo-500 rounded-2xl blur opacity-0 group-hover:opacity-20 transition-opacity"></div>
-              <img
-                v-if="user.acf?.imagem"
-                :src="user.acf.imagem.url"
-                class="relative w-20 h-20 rounded-2xl object-cover shadow-inner ring-1 ring-black/5"
-              />
-              <div v-else class="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 shadow-inner ring-1 ring-black/5">
-                <User class="w-10 h-10 opacity-30" />
+      <!-- LISTAGEM -->
+      <section class="animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+        <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div v-for="user in filteredUsuarios" :key="user.id" class="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(8,112,184,0.07)] transition-all duration-500 group relative flex flex-col items-center text-center">
+            <div class="relative mb-6">
+              <div class="absolute inset-0 bg-blue-500/10 rounded-3xl blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
+              <div :class="['relative w-24 h-24 rounded-[2rem] flex items-center justify-center text-2xl font-black shadow-inner transition-transform duration-500 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600']">
+                {{ user.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
               </div>
             </div>
-
-            <!-- Content -->
-            <div :class="['flex-1 min-w-0', viewMode === 'grid' ? 'w-full mb-8' : '']">
-              <div class="flex items-center gap-3 mb-1" :class="viewMode === 'grid' ? 'justify-center' : ''">
-                <h2 class="text-2xl font-bold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
-                  {{ user.acf?.nome || 'Sem nome' }}
-                </h2>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
-                  Ativo
-                </span>
-              </div>
-              <p class="text-sm font-medium text-slate-400">
-                ID Membro: #{{ user.id }}
-              </p>
-
-              <!-- Additional info for List mode hidden in Grid -->
-              <div v-if="viewMode === 'list'" class="flex flex-wrap gap-6 mt-3">
-                <div class="flex items-center gap-2 text-slate-500 text-sm">
-                  <Mail class="w-4 h-4 text-slate-400" />
-                  {{ user.acf?.email || 'N/A' }}
-                </div>
-                <div class="flex items-center gap-2 text-slate-500 text-sm">
-                  <FileText class="w-4 h-4 text-slate-400" />
-                  {{ user.acf?.cpf || 'N/A' }}
-                </div>
+            <h3 class="font-black text-xl text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors duration-300 mb-6">{{ user.acf?.nome || 'Sem nome' }}</h3>
+            <div class="w-full space-y-4 mb-8">
+              <div class="flex flex-col items-center">
+                <span class="text-[10px] uppercase font-bold text-slate-300 tracking-[0.2em] mb-1">E-mail Corporativo</span>
+                <span class="text-sm font-medium text-slate-600">{{ user.acf?.email || 'N/A' }}</span>
               </div>
             </div>
-
-            <!-- Info Grid (Grid mode only) -->
-            <div v-if="viewMode === 'grid'" class="w-full space-y-4 pt-6 border-t border-slate-100/80">
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-slate-400 font-medium">Email</span>
-                <span class="text-slate-700 font-semibold truncate max-w-[140px]">{{ user.acf?.email || 'N/A' }}</span>
-              </div>
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-slate-400 font-medium">CPF</span>
-                <span class="text-slate-700 font-semibold">{{ user.acf?.cpf || 'N/A' }}</span>
-              </div>
-            </div>
-
-            <!-- Action Button -->
-            <div :class="['shrink-0', viewMode === 'grid' ? 'mt-8 w-full flex gap-2' : 'ml-auto flex gap-2']">
-              <button
-                @click="openProfileModal(user)"
-                class="flex-1 px-5 py-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-xl text-sm transition-colors border border-slate-200"
-              >
-                {{ viewMode === 'grid' ? 'Ver Perfil' : 'Detalhes' }}
-              </button>
-              <button
-                @click="openEditModal(user)"
-                class="p-2.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-xl border border-slate-200 transition-all"
-                title="Editar"
-              >
-                <Pencil class="w-4 h-4" />
-              </button>
-              <button
-                @click="openDeleteModal(user)"
-                class="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-xl border border-slate-200 transition-all"
-                title="Excluir"
-              >
-                <Trash2 class="w-4 h-4" />
-              </button>
+            <div class="w-full flex gap-3 pt-2">
+              <button @click="handleViewClick(user)" class="flex-1 py-3.5 bg-slate-50 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-2xl transition-all duration-300 flex items-center justify-center active:scale-95"><Eye class="w-4 h-4" /></button>
+              <button @click="handleEditClick(user)" class="flex-1 py-3.5 bg-slate-50 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded-2xl transition-all duration-300 flex items-center justify-center active:scale-95"><Edit2 class="w-4 h-4" /></button>
+              <button @click="handleDeleteClick(user)" class="flex-1 py-3.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all duration-300 flex items-center justify-center active:scale-95"><Trash2 class="w-4 h-4" /></button>
             </div>
           </div>
-        </TransitionGroup>
-      </div>
+        </div>
 
-      <!-- Empty State -->
-      <div v-else class="flex flex-col items-center justify-center p-20 bg-white/40 border-2 border-slate-200 border-dashed rounded-[3rem]">
-        <AlertCircle class="w-12 h-12 text-slate-300 mb-4" />
-        <h3 class="text-2xl font-bold text-slate-800 text-center">Nenhum usuário encontrado</h3>
-        <p class="text-slate-400 mt-2 text-center max-w-sm">Tente ajustar seus filtros ou termos de busca.</p>
-        <button v-if="searchQuery || statusFilter !== 'todos'" @click="searchQuery = ''; statusFilter = 'todos'" class="mt-6 text-indigo-600 font-bold hover:underline">
-          Limpar todos os filtros
-        </button>
-      </div>
+        <div v-else class="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto">
+          <table class="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr class="bg-slate-50/40 border-b border-slate-100">
+                <th class="pl-10 pr-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Usuário & Contato</th>
+                <th class="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Identificação</th>
+                <th class="px-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Nascimento</th>
+                <th class="pr-10 pl-6 py-6 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+              <tr v-for="user in filteredUsuarios" :key="user.id" class="hover:bg-blue-50/40 transition-all duration-300 group">
+                <td class="pl-10 pr-6 py-6">
+                  <div class="flex items-center gap-5">
+                    <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-sm transition-all duration-500 group-hover:rounded-[1.5rem] group-hover:rotate-3 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700']">
+                      {{ user.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
+                    </div>
+                    <div class="flex flex-col">
+                      <p class="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{{ user.acf?.nome || 'Sem nome' }}</p>
+                      <span class="text-xs text-slate-400">{{ user.acf?.email || 'N/A' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-6 font-bold text-slate-700 text-sm">{{ user.acf?.cpf || 'N/A' }}</td>
+                <td class="px-6 py-6 font-bold text-slate-700 text-sm">{{ formatDate(user.acf?.data_de_nascimento) }}</td>
+                <td class="pr-10 pl-6 py-6 text-right">
+                  <div class="flex justify-end gap-2.5">
+                    <button @click="handleViewClick(user)" class="p-3 bg-white border border-slate-100 text-slate-400 hover:text-blue-600 rounded-xl transition-all active:scale-90"><Eye class="w-4 h-4" /></button>
+                    <button @click="handleEditClick(user)" class="p-3 bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 rounded-xl transition-all active:scale-90"><Edit2 class="w-4 h-4" /></button>
+                    <button @click="handleDeleteClick(user)" class="p-3 bg-white border border-slate-100 text-slate-400 hover:text-red-600 rounded-xl transition-all active:scale-90"><Trash2 class="w-4 h-4" /></button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
 
+    <!-- MODAL DE VISUALIZAÇÃO (NOVO) -->
+    <div v-if="isViewModalOpen && selectedUser" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" @click="isViewModalOpen = false"></div>
+      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
+        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Detalhes do Usuário</h2>
+            <p class="text-sm text-slate-500">Visualizando informações completas do registro.</p>
+          </div>
+          <button @click="isViewModalOpen = false" class="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <div class="p-8 max-h-[75vh] overflow-y-auto">
+          <div class="flex flex-col items-center mb-10">
+            <div class="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-4xl text-blue-600 shadow-inner">
+              {{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
+            </div>
+            <h3 class="mt-4 text-2xl font-black text-slate-900">{{ selectedUser.acf?.nome || 'Sem nome' }}</h3>
+            <span class="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest mt-2">Usuário Ativo</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">E-mail Corporativo</label>
+              <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Mail class="w-4 h-4 text-slate-400" /> {{ selectedUser.acf?.email || 'N/A' }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Documento CPF</label>
+              <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <CreditCard class="w-4 h-4 text-slate-400" /> {{ selectedUser.acf?.cpf || 'N/A' }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Data de Nascimento</label>
+              <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <Calendar class="w-4 h-4 text-slate-400" /> {{ formatDate(selectedUser.acf?.data_de_nascimento) }}
+              </p>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">ID do Registro</label>
+              <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
+                <ExternalLink class="w-4 h-4 text-slate-400" /> #USR-{{ selectedUser.id }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-8 py-6 bg-slate-50/50 border-t border-slate-50 flex items-center justify-end gap-3">
+          <button @click="isViewModalOpen = false" class="px-6 py-3.5 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
+            Fechar
+          </button>
+          <button @click="handleEditClick(selectedUser)" class="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center gap-2">
+            <Edit2 class="w-4 h-4" />
+            Editar Perfil
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Modal de Criação (Premium) -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <!-- Backdrop -->
-          <div @click="isModalOpen = false" class="absolute inset-0 bg-slate-900/40 backdrop-blur-md transition-opacity"></div>
-          
-          <!-- Modal Content -->
-          <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
-            <!-- Header -->
-            <div class="px-8 pt-8 pb-4 flex items-center justify-between">
-              <div>
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">Novo <span class="text-indigo-600">Usuário</span></h2>
-                <p class="text-slate-400 text-sm font-medium mt-1">Configure o perfil e credenciais do novo membro.</p>
-              </div>
-              <button @click="isModalOpen = false" class="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
-                <Plus class="w-6 h-6 rotate-45" />
-              </button>
-            </div>
-
-            <!-- Form -->
-            <form @submit.prevent="handleSubmit" class="p-8 pt-4 max-h-[70vh] overflow-y-auto space-y-6 custom-scrollbar">
-              
-              <!-- Seção: Informações Básicas -->
-              <div class="space-y-4">
-                <h3 class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4">Informações Básicas</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <!-- Nome -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Nome Completo</label>
-                    <div class="relative group">
-                      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <User class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                      </div>
-                      <input 
-                        v-model="newUsuario.nome"
-                        type="text" 
-                        required
-                        placeholder="Ex: João Silva"
-                        class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Email -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
-                    <div class="relative group">
-                      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Mail class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                      </div>
-                      <input 
-                        v-model="newUsuario.email"
-                        type="email" 
-                        required
-                        placeholder="joao@exemplo.com"
-                        class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- CPF -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">CPF</label>
-                    <div class="relative group">
-                      <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <FileText class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                      </div>
-                      <input 
-                        v-model="newUsuario.cpf"
-                        type="text" 
-                        required
-                        placeholder="000.000.000-00"
-                        class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                      />
-                    </div>
-                  </div>
-
-                  <!-- Data Nascimento -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Data de Nascimento</label>
-                    <input 
-                      v-model="newUsuario.dataNascimento"
-                      type="date" 
-                      class="block w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Seção: Credenciais -->
-              <div class="space-y-4 pt-4">
-                <h3 class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4">Credenciais de Acesso</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <!-- Senha -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Senha</label>
-                    <input 
-                      v-model="newUsuario.senha"
-                      type="password" 
-                      required
-                      placeholder="••••••••"
-                      class="block w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner"
-                    />
-                  </div>
-
-                  <!-- Confirmar Senha -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Confirmar Senha</label>
-                    <input 
-                      v-model="newUsuario.confirmarSenha"
-                      type="password" 
-                      required
-                      placeholder="••••••••"
-                      :class="['block w-full px-4 py-3 bg-slate-50 border rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:bg-white transition-all text-sm font-medium shadow-inner', passwordMismatch ? 'border-red-300 ring-red-500/10' : 'border-slate-100 focus:border-indigo-500']"
-                    />
-                    <p v-if="passwordMismatch" class="text-[10px] font-bold text-red-500 mt-1 pl-1">As senhas não coincidem.</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Seção: Perfil e Status -->
-              <div class="space-y-4 pt-4">
-                <h3 class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-4">Perfil e Status</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <!-- Upload Imagem -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Foto de Perfil</label>
-                    <input 
-                      ref="fileInput"
-                      type="file" 
-                      accept="image/*"
-                      class="hidden"
-                      @change="onFileChange"
-                    />
-                    <div 
-                      @click="triggerFileInput"
-                      class="relative h-[110px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group overflow-hidden flex flex-col items-center justify-center gap-2"
-                    >
-                      <div v-if="imagePreview" class="absolute inset-0">
-                        <img :src="imagePreview" class="w-full h-full object-cover" />
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Camera class="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <template v-else>
-                        <div class="p-2 bg-white rounded-xl shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
-                          <ImageIcon class="w-5 h-5 text-indigo-500" />
-                        </div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Clique para carregar</span>
-                      </template>
-                    </div>
-                  </div>
-
-                  <!-- Status -->
-                  <div class="space-y-2">
-                    <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Status Inicial</label>
-                    <div class="h-[110px] flex flex-col justify-end">
-                      <select 
-                        v-model="newUsuario.status"
-                        class="block w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-bold shadow-inner cursor-pointer appearance-none"
-                      >
-                        <option value="ativo">Ativo</option>
-                        <option value="inativo">Inativo</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Footer Actions -->
-              <div class="flex items-center gap-4 pt-6 mt-6 border-t border-slate-50">
-                <button 
-                  type="button"
-                  @click="isModalOpen = false"
-                  class="flex-1 px-6 py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold rounded-2xl transition-all active:scale-95"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  :disabled="isSubmitting || !isFormValid"
-                  :class="['flex-[2] px-6 py-4 font-bold rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3', !isFormValid ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-slate-900 border border-slate-800 hover:bg-indigo-600 hover:border-indigo-500 text-white shadow-slate-900/10']"
-                >
-                  <Loader2 v-if="isSubmitting" class="w-5 h-5 animate-spin text-white/50" />
-                  {{ isSubmitting ? 'Cadastrando...' : 'Confirmar Cadastro' }}
-                </button>
-              </div>
-            </form>
+    <!-- MODAL DE EDIÇÃO COMPLETO -->
+    <div v-if="isEditModalOpen && selectedUser" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" @click="isEditModalOpen = false"></div>
+      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
+        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Editar Usuário</h2>
+            <p class="text-sm text-slate-500">Altere as informações necessárias do cadastro.</p>
           </div>
+          <button @click="isEditModalOpen = false" class="p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+            <X class="w-5 h-5" />
+          </button>
         </div>
-      </Transition>
-    </Teleport>
 
-    <!-- ─── Modal de Edição ─────────────────────────────────────── -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="isEditModalOpen" class="fixed inset-0 z-[101] flex items-center justify-center p-4">
-          <div @click="isEditModalOpen = false" class="absolute inset-0 bg-slate-900/40 backdrop-blur-md"></div>
-          <div class="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
-            <!-- Header -->
-            <div class="px-8 pt-8 pb-4 flex items-center justify-between">
-              <div>
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">Editar <span class="text-indigo-600">Usuário</span></h2>
-                <p class="text-slate-400 text-sm font-medium mt-1">Atualize as informações de <span class="font-semibold text-slate-600">{{ editingUser?.acf?.nome || 'Membro' }}</span></p>
+        <div class="p-8 max-h-[75vh] overflow-y-auto">
+          <form class="space-y-8" @submit.prevent="handleEditSubmit">
+            <div class="flex flex-col items-center gap-4">
+              <div class="relative group cursor-pointer">
+                <div class="w-24 h-24 rounded-[2.2rem] bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105">
+                  <span class="text-3xl font-black text-indigo-600">{{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}</span>
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera class="w-6 h-6 text-white" />
+                  </div>
+                </div>
               </div>
-              <button @click="isEditModalOpen = false" class="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
-                <X class="w-5 h-5" />
-              </button>
             </div>
 
-            <!-- Form -->
-            <form @submit.prevent="handleEdit" class="p-8 pt-4 max-h-[70vh] overflow-y-auto space-y-5 custom-scrollbar">
-              
-              <!-- Foto de Perfil -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
-                <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Foto de Perfil</label>
-                <input ref="editFileInput" type="file" accept="image/*" class="hidden" @change="onEditFileChange" />
-                <div @click="triggerEditFileInput" class="relative h-[100px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all group overflow-hidden flex flex-col items-center justify-center gap-2">
-                  <div v-if="editImagePreview" class="absolute inset-0">
-                    <img :src="editImagePreview" class="w-full h-full object-cover" />
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Camera class="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <template v-else>
-                    <div class="p-2 bg-white rounded-xl shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
-                      <ImageIcon class="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Clique para alterar</span>
-                  </template>
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
+                <div class="relative group">
+                  <User class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="text" v-model="selectedUser.acf.nome" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
                 </div>
               </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <!-- Nome -->
-                <div class="space-y-2">
-                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Nome Completo</label>
-                  <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <User class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                    </div>
-                    <input v-model="editForm.nome" type="text" required placeholder="Nome completo" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
-                  </div>
-                </div>
-
-                <!-- Email -->
-                <div class="space-y-2">
-                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
-                  <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Mail class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                    </div>
-                    <input v-model="editForm.email" type="email" required placeholder="email@exemplo.com" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
-                  </div>
-                </div>
-
-                <!-- CPF -->
-                <div class="space-y-2">
-                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">CPF</label>
-                  <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FileText class="w-4 h-4 text-slate-300 group-focus-within:text-indigo-500" />
-                    </div>
-                    <input v-model="editForm.cpf" type="text" placeholder="000.000.000-00" class="block w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
-                  </div>
-                </div>
-
-                <!-- Data de Nascimento -->
-                <div class="space-y-2">
-                  <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-1">Data de Nascimento</label>
-                  <input v-model="editForm.dataNascimento" type="date" class="block w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 focus:bg-white transition-all text-sm font-medium shadow-inner" />
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">E-mail Corporativo</label>
+                <div class="relative group">
+                  <Mail class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="email" v-model="selectedUser.acf.email" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
                 </div>
               </div>
-
-              <!-- Footer -->
-              <div class="flex items-center gap-4 pt-6 mt-2 border-t border-slate-50">
-                <button type="button" @click="isEditModalOpen = false" class="flex-1 px-6 py-4 bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold rounded-2xl transition-all active:scale-95">
-                  Cancelar
-                </button>
-                <button type="submit" :disabled="isEditing" :class="['flex-[2] px-6 py-4 font-bold rounded-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3', isEditing ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20']">
-                  <Loader2 v-if="isEditing" class="w-5 h-5 animate-spin text-white/50" />
-                  {{ isEditing ? 'Salvando...' : 'Salvar Alterações' }}
-                </button>
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CPF</label>
+                <div class="relative group">
+                  <CreditCard class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="text" v-model="selectedUser.acf.cpf" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
               </div>
-            </form>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- ─── Modal de Confirmação de Exclusão ─────────────────────── -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="isDeleteModalOpen" class="fixed inset-0 z-[102] flex items-center justify-center p-4">
-          <div @click="isDeleteModalOpen = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
-          <div class="relative w-full max-w-sm bg-white rounded-[2rem] shadow-2xl border border-slate-100 overflow-hidden p-8 text-center">
-            <!-- Ícone de aviso -->
-            <div class="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
-              <Trash2 class="w-8 h-8 text-red-500" />
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nascimento</label>
+                <div class="relative group">
+                  <Calendar class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="date" v-model="selectedUser.acf.data_de_nascimento" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
             </div>
-            <h3 class="text-2xl font-black text-slate-900 mb-2">Excluir Usuário</h3>
-            <p class="text-slate-500 text-sm mb-1">Você está prestes a excluir permanentemente:</p>
-            <p class="text-indigo-600 font-bold text-lg mb-6">{{ deletingUser?.acf?.nome || `ID #${deletingUser?.id}` }}</p>
-            <p class="text-xs text-red-400 font-medium bg-red-50 rounded-xl px-4 py-2 mb-6">⚠️ Esta ação não pode ser desfeita.</p>
-            <div class="flex gap-3">
-              <button @click="isDeleteModalOpen = false" class="flex-1 px-5 py-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold rounded-2xl transition-all active:scale-95 text-sm">
+
+            <div class="px-2 pt-2 bg-slate-50/0 flex items-center justify-end gap-3 mt-4">
+              <button type="button" @click="isEditModalOpen = false" class="px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
                 Cancelar
               </button>
-              <button @click="handleDelete" :disabled="isDeleting" :class="['flex-[2] px-5 py-3.5 font-bold rounded-2xl transition-all active:scale-95 text-sm flex items-center justify-center gap-2', isDeleting ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20']">
-                <Loader2 v-if="isDeleting" class="w-4 h-4 animate-spin" />
-                {{ isDeleting ? 'Excluindo...' : 'Sim, excluir' }}
+              <button type="submit" class="px-10 py-3.5 bg-[#22c55e] text-white rounded-2xl font-black text-sm hover:bg-[#16a34a] transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center gap-2">
+                <Check class="w-4 h-4" />
+                Atualizar Dados
               </button>
             </div>
-          </div>
+
+          </form>
         </div>
-      </Transition>
-    </Teleport>
+      </div>
+    </div>
 
-    <!-- ─── Modal de Perfil Completo ─────────────────────────────── -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="isProfileModalOpen" class="fixed inset-0 z-[103] flex items-center justify-center p-4">
-          <div @click="isProfileModalOpen = false" class="absolute inset-0 bg-slate-900/50 backdrop-blur-md"></div>
+    <!-- MODAL DE CRIAÇÃO (COM CAMPOS COMPLETOS BASEADOS NA EDIÇÃO) -->
+    <div v-if="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isModalOpen = false"></div>
+      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
+        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Novo Usuário</h2>
+            <p class="text-sm text-slate-500">Interface de criação de novo registro.</p>
+          </div>
+          <button @click="isModalOpen = false" class="p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
 
-          <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden">
+        <div class="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
+          <form class="space-y-8" @submit.prevent="handleCreateSubmit">
             
-            <!-- Banner de topo com gradiente -->
-            <div class="h-32 bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-400 relative">
-              <div class="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_left,_white,_transparent)]"></div>
-              <!-- Botão fechar -->
-              <button @click="isProfileModalOpen = false" class="absolute top-4 right-4 p-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-2xl transition-all">
-                <X class="w-5 h-5" />
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
+                <div class="relative group">
+                  <User class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="text" v-model="createForm.nome" required placeholder="Digite o nome" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">E-mail Corporativo</label>
+                <div class="relative group">
+                  <Mail class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="email" v-model="createForm.email" required placeholder="email@empresa.com" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">CPF</label>
+                <div class="relative group">
+                  <CreditCard class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="text" v-model="createForm.cpf" required placeholder="000.000.000-00" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
+              <div class="space-y-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nascimento</label>
+                <div class="relative group">
+                  <Calendar class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="date" v-model="createForm.data_de_nascimento" required class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
+
+              <!-- Criei o campo de senha que é necessário pro banco WP -->
+              <div class="space-y-2 md:col-span-2">
+                <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Senha de Acesso</label>
+                <div class="relative group">
+                  <Lock class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <input type="password" v-model="createForm.senha" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:border-blue-200 focus:bg-white outline-none transition-all text-sm font-medium" />
+                </div>
+              </div>
+
+            </div>
+            
+            <div class="px-2 pt-2 flex items-center justify-end gap-3 mt-4">
+              <button type="button" @click="isModalOpen = false" class="px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
+                Cancelar
+              </button>
+              <button type="submit" class="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center gap-2">
+                <Plus class="w-4 h-4" />
+                Criar Usuário
               </button>
             </div>
-
-            <!-- Avatar sobreposto ao banner -->
-            <div class="px-8 pb-8">
-              <div class="-mt-12 mb-5 flex items-end justify-between">
-                <!-- Foto -->
-                <div class="relative">
-                  <img
-                    v-if="profileUser?.acf?.imagem"
-                    :src="profileUser.acf.imagem.url"
-                    class="w-24 h-24 rounded-2xl object-cover ring-4 ring-white shadow-xl"
-                  />
-                  <div v-else class="w-24 h-24 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 ring-4 ring-white shadow-xl flex items-center justify-center">
-                    <User class="w-12 h-12 text-slate-300" />
-                  </div>
-                  <span class="absolute -bottom-2 -right-2 inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-md">
-                    Ativo
-                  </span>
-                </div>
-                <!-- Ações rápidas no topo do modal -->
-                <div class="flex items-center gap-2 mt-12">
-                  <button
-                    @click="isProfileModalOpen = false; openEditModal(profileUser)"
-                    class="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold rounded-xl text-sm transition-all border border-indigo-100"
-                  >
-                    <Pencil class="w-3.5 h-3.5" />
-                    Editar
-                  </button>
-                  <button
-                    @click="isProfileModalOpen = false; openDeleteModal(profileUser)"
-                    class="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl text-sm transition-all border border-red-100"
-                  >
-                    <Trash2 class="w-3.5 h-3.5" />
-                    Excluir
-                  </button>
-                </div>
-              </div>
-
-              <!-- Nome e ID -->
-              <div class="mb-8">
-                <h2 class="text-3xl font-black text-slate-900 tracking-tight">
-                  {{ profileUser?.acf?.nome || 'Sem nome' }}
-                </h2>
-                <p class="text-slate-400 text-sm font-medium mt-1">ID Membro: <span class="text-indigo-500 font-bold">#{{ profileUser?.id }}</span></p>
-              </div>
-
-              <!-- Dados em grid -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                
-                <!-- Email -->
-                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-                    <Mail class="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">E-mail</p>
-                    <p class="text-slate-700 font-semibold text-sm truncate">{{ profileUser?.acf?.email || 'N/A' }}</p>
-                  </div>
-                </div>
-
-                <!-- CPF -->
-                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-                    <FileText class="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">CPF</p>
-                    <p class="text-slate-700 font-semibold text-sm">{{ profileUser?.acf?.cpf || 'N/A' }}</p>
-                  </div>
-                </div>
-
-                <!-- Data de Nascimento -->
-                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-                    <Calendar class="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Nascimento</p>
-                    <p class="text-slate-700 font-semibold text-sm">{{ formatDate(profileUser?.acf?.data_de_nascimento) }}</p>
-                  </div>
-                </div>
-
-                <!-- Status -->
-                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-                    <ShieldCheck class="w-4 h-4 text-emerald-500" />
-                  </div>
-                  <div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Status</p>
-                    <p class="text-emerald-600 font-bold text-sm capitalize">{{ profileUser?.acf?.status || 'Ativo' }}</p>
-                  </div>
-                </div>
-
-                <!-- Senha -->
-                <div class="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 md:col-span-2">
-                  <div class="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 shrink-0">
-                    <KeyRound class="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Senha</p>
-                    <div class="flex items-center gap-3">
-                      <p class="text-slate-700 font-semibold text-sm tracking-widest flex-1">
-                        {{ profileUser?.acf?.senha ? (showPassword ? profileUser.acf.senha : '••••••••••') : 'N/A' }}
-                      </p>
-                      <button
-                        v-if="profileUser?.acf?.senha"
-                        @click="showPassword = !showPassword"
-                        class="p-1.5 bg-white hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 rounded-lg border border-slate-100 transition-all shrink-0"
-                        :title="showPassword ? 'Ocultar senha' : 'Revelar senha'"
-                      >
-                        <Eye v-if="!showPassword" class="w-3.5 h-3.5" />
-                        <EyeOff v-else class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- Rodapé -->
-              <div class="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between">
-                <p class="text-[11px] text-slate-300 font-medium">Cadastrado em: <span class="text-slate-400">{{ new Date(profileUser?.date).toLocaleDateString('pt-BR') }}</span></p>
-                <button @click="isProfileModalOpen = false" class="px-6 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white font-bold rounded-xl text-sm transition-all shadow-md active:scale-95">
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
+          </form>
         </div>
-      </Transition>
-    </Teleport>
+      </div>
+    </div>
+
+    <!-- MODAL DE EXCLUSÃO -->
+    <div v-if="isDeleteModalOpen" class="fixed inset-0 z-[110] flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" @click="isDeleteModalOpen = false"></div>
+      <div class="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-8 text-center animate-in zoom-in-95 duration-300">
+        <div class="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center mb-6 mx-auto">
+          <AlertTriangle class="w-10 h-10 text-red-600" />
+        </div>
+        <h2 class="text-2xl font-black mb-2">Confirmar Exclusão</h2>
+        <p class="text-slate-500 mb-8">Excluir permanentemente o usuário <span class="font-bold text-slate-900">{{ userToDelete?.acf?.nome || 'esse registro' }}</span>?</p>
+        <div class="grid grid-cols-1 gap-3">
+          <button @click="confirmDelete" class="w-full py-4 bg-red-600 hover:bg-red-700 transition-colors text-white rounded-2xl font-black shadow-xl shadow-red-200 active:scale-95">Sim, excluir agora</button>
+          <button @click="isDeleteModalOpen = false" class="w-full py-4 border-2 border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors rounded-2xl font-bold active:scale-95">Cancelar</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
-
-<style>
-body {
-  font-family: 'Outfit', sans-serif;
-}
-
-/* Transitions */
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s ease;
-}
-.list-enter-from,
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(30px) scale(0.95);
-}
-.list-move {
-  transition: transform 0.4s ease;
-}
-
-/* Modal Transitions */
-.modal-enter-active,
-.modal-leave-active {
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-from .relative,
-.modal-leave-to .relative {
-  transform: scale(0.9) translateY(20px);
-  filter: blur(10px);
-}
-
-/* Custom Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
-}
-</style>
