@@ -71,6 +71,13 @@ const filteredUsuarios = computed(() => {
   })
 })
 
+// Usuário logado
+const loggedUser = computed(() => {
+  const authCookie = useCookie('auth_user')
+  if (!usuarios.value || !authCookie.value) return null
+  return usuarios.value.find(u => u.id === Number(authCookie.value))
+})
+
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A'
   if (dateStr.length === 8 && !dateStr.includes('-')) {
@@ -89,6 +96,27 @@ const selectedUser = ref(null)
 const userToDelete = ref(null)
 
 const isSubmitting = ref(false)
+
+// Estado para Upload de Imagem
+const fileInput = ref(null)
+const selectedFile = ref(null)
+const imagePreview = ref(null)
+
+const triggerFileInput = () => {
+  fileInput.value?.click()
+}
+
+const onFileChange = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+  
+  selectedFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    imagePreview.value = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
 
 // Formulários
 const createForm = ref({ nome: '', email: '', cpf: '', data_de_nascimento: '', senha: '' })
@@ -123,6 +151,22 @@ const handleCreateSubmit = async () => {
   appLoading.value = true
   
   try {
+    let imageId = null
+
+    // 1. Upload da imagem se houver
+    if (selectedFile.value) {
+      const formData = new FormData()
+      formData.append('file', selectedFile.value)
+      formData.append('title', `Avatar ${createForm.value.nome}`)
+      
+      const mediaResponse = await $fetch('http://localhost:8000/wp-json/wp/v2/media', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader },
+        body: formData
+      })
+      imageId = mediaResponse.id
+    }
+
     const formattedDate = createForm.value.data_de_nascimento 
       ? createForm.value.data_de_nascimento.replace(/-/g, '') 
       : ''
@@ -141,7 +185,8 @@ const handleCreateSubmit = async () => {
           email: createForm.value.email,
           cpf: createForm.value.cpf,
           data_de_nascimento: formattedDate,
-          senha: createForm.value.senha
+          senha: createForm.value.senha,
+          imagem: imageId
         }
       }
     })
@@ -149,6 +194,8 @@ const handleCreateSubmit = async () => {
     $toast?.success('Usuário criado com sucesso!')
     isModalOpen.value = false
     createForm.value = { nome: '', email: '', cpf: '', data_de_nascimento: '', senha: '' }
+    selectedFile.value = null
+    imagePreview.value = null
     await refresh()
   } catch (error) {
     console.error('Erro ao criar usuário:', error)
@@ -165,6 +212,22 @@ const handleEditSubmit = async () => {
   appLoading.value = true
 
   try {
+    let imageId = selectedUser.value.acf?.imagem?.id || null
+
+    // Upload de nova imagem se selecionada
+    if (selectedFile.value) {
+      const formData = new FormData()
+      formData.append('file', selectedFile.value)
+      formData.append('title', `Avatar ${selectedUser.value.acf.nome}`)
+      
+      const mediaResponse = await $fetch('http://localhost:8000/wp-json/wp/v2/media', {
+        method: 'POST',
+        headers: { 'Authorization': authHeader },
+        body: formData
+      })
+      imageId = mediaResponse.id
+    }
+
     const formattedDate = selectedUser.value.acf.data_de_nascimento?.includes('-') 
       ? selectedUser.value.acf.data_de_nascimento.replace(/-/g, '') 
       : selectedUser.value.acf.data_de_nascimento
@@ -178,12 +241,15 @@ const handleEditSubmit = async () => {
           nome: selectedUser.value.acf.nome,
           email: selectedUser.value.acf.email,
           cpf: selectedUser.value.acf.cpf,
-          data_de_nascimento: formattedDate
+          data_de_nascimento: formattedDate,
+          imagem: imageId
         }
       }
     })
 
     isEditModalOpen.value = false
+    selectedFile.value = null
+    imagePreview.value = null
     $toast?.success('Usuário editado com sucesso!')
     await refresh()
   } catch (error) {
@@ -222,6 +288,14 @@ const confirmDelete = async () => {
 
 <template>
   <div class="min-h-screen bg-[#f8fafc] font-sans text-slate-900">
+    <!-- Input de arquivo invisível para upload -->
+    <input 
+      type="file" 
+      ref="fileInput" 
+      class="hidden" 
+      accept="image/*" 
+      @change="onFileChange"
+    />
     
     <!-- HEADER -->
     <header class="bg-white border-b border-slate-100 sticky top-0 z-50">
@@ -238,10 +312,15 @@ const confirmDelete = async () => {
               @click="showProfileMenu = !showProfileMenu"
               class="flex items-center gap-3 p-1.5 pr-3 hover:bg-slate-50 rounded-2xl transition-all border border-transparent hover:border-slate-100"
             >
-              <div class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">JD</div>
+              <div v-if="loggedUser?.acf?.imagem" class="w-9 h-9 rounded-xl overflow-hidden shadow-sm">
+                <img :src="loggedUser.acf.imagem.url" class="w-full h-full object-cover" />
+              </div>
+              <div v-else class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                {{ loggedUser?.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
+              </div>
               <div class="hidden md:block text-left">
-                <p class="text-sm font-bold leading-none">John Doe</p>
-                <p class="text-xs text-slate-500 mt-1">john@empresa.com</p>
+                <p class="text-sm font-bold leading-none">{{ loggedUser?.acf?.nome || 'Usuário' }}</p>
+                <p class="text-xs text-slate-500 mt-1">{{ loggedUser?.acf?.email || 'email@exemplo.com' }}</p>
               </div>
               <ChevronDown :class="['w-4 h-4 text-slate-400 transition-transform', showProfileMenu ? 'rotate-180' : '']" />
             </button>
@@ -271,7 +350,7 @@ const confirmDelete = async () => {
       <!-- BOAS-VINDAS -->
       <section class="mb-10 animate-in fade-in slide-in-from-left-6 duration-700">
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
-          {{ greeting }}, John Doe!
+          {{ greeting }}, {{ loggedUser?.acf?.nome || 'Usuário' }}!
         </h1>
         <p class="text-slate-500 mt-2 text-lg max-w-2xl leading-relaxed">
           Gerencie sua base de usuários com facilidade. Explore os detalhes e realize ações rápidas.
@@ -311,7 +390,8 @@ const confirmDelete = async () => {
           <div v-for="user in filteredUsuarios" :key="user.id" class="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(8,112,184,0.07)] transition-all duration-500 group relative flex flex-col items-center text-center">
             <div class="relative mb-6">
               <div class="absolute inset-0 bg-blue-500/10 rounded-3xl blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
-              <div :class="['relative w-24 h-24 rounded-[2rem] flex items-center justify-center text-2xl font-black shadow-inner transition-transform duration-500 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600']">
+              <img v-if="user.acf?.imagem" :src="user.acf.imagem.url" class="relative w-24 h-24 rounded-[2rem] object-cover shadow-inner transition-transform duration-500 group-hover:scale-110 ring-1 ring-black/5" />
+              <div v-else :class="['relative w-24 h-24 rounded-[2rem] flex items-center justify-center text-2xl font-black shadow-inner transition-transform duration-500 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600']">
                 {{ user.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
               </div>
             </div>
@@ -344,7 +424,8 @@ const confirmDelete = async () => {
               <tr v-for="user in filteredUsuarios" :key="user.id" class="hover:bg-blue-50/40 transition-all duration-300 group">
                 <td class="pl-10 pr-6 py-6">
                   <div class="flex items-center gap-5">
-                    <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-sm transition-all duration-500 group-hover:rounded-[1.5rem] group-hover:rotate-3 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700']">
+                    <img v-if="user.acf?.imagem" :src="user.acf.imagem.url" class="w-14 h-14 rounded-2xl object-cover shadow-sm transition-all duration-500 group-hover:rounded-[1.5rem] group-hover:rotate-3 group-hover:scale-110 ring-1 ring-black/5" />
+                    <div v-else :class="['w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-sm transition-all duration-500 group-hover:rounded-[1.5rem] group-hover:rotate-3 group-hover:scale-110', user.id % 2 === 0 ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700']">
                       {{ user.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
                     </div>
                     <div class="flex flex-col">
@@ -385,7 +466,8 @@ const confirmDelete = async () => {
 
         <div class="p-8 max-h-[75vh] overflow-y-auto">
           <div class="flex flex-col items-center mb-10">
-            <div class="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-4xl text-blue-600 shadow-inner">
+            <img v-if="selectedUser.acf?.imagem" :src="selectedUser.acf.imagem.url" class="w-28 h-28 rounded-[2.5rem] object-cover border-2 border-slate-100 shadow-inner" />
+            <div v-else class="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-4xl text-blue-600 shadow-inner">
               {{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
             </div>
             <h3 class="mt-4 text-2xl font-black text-slate-900">{{ selectedUser.acf?.nome || 'Sem nome' }}</h3>
@@ -449,9 +531,11 @@ const confirmDelete = async () => {
         <div class="p-8 max-h-[75vh] overflow-y-auto">
           <form class="space-y-8" @submit.prevent="handleEditSubmit">
             <div class="flex flex-col items-center gap-4">
-              <div class="relative group cursor-pointer">
-                <div class="w-24 h-24 rounded-[2.2rem] bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105">
-                  <span class="text-3xl font-black text-indigo-600">{{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}</span>
+              <div class="relative group cursor-pointer" @click="triggerFileInput">
+                <div class="w-24 h-24 rounded-[2.2rem] bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105 relative">
+                  <img v-if="imagePreview" :src="imagePreview" class="w-full h-full object-cover" />
+                  <img v-else-if="selectedUser.acf?.imagem" :src="selectedUser.acf.imagem.url" class="w-full h-full object-cover" />
+                  <span v-else class="text-3xl font-black text-indigo-600">{{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}</span>
                   <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Camera class="w-6 h-6 text-white" />
                   </div>
@@ -522,6 +606,21 @@ const confirmDelete = async () => {
         <div class="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
           <form class="space-y-8" @submit.prevent="handleCreateSubmit">
             
+            <div class="flex flex-col items-center gap-4 mb-4">
+              <div class="relative group cursor-pointer" @click="triggerFileInput">
+                <div class="w-24 h-24 rounded-[2.2rem] bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105 relative">
+                  <img v-if="imagePreview" :src="imagePreview" class="w-full h-full object-cover" />
+                  <div v-else class="flex flex-col items-center justify-center text-indigo-300">
+                    <Camera class="w-8 h-8 mb-1" />
+                    <span class="text-[9px] font-black uppercase">Foto</span>
+                  </div>
+                  <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera class="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div class="space-y-2">
                 <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
