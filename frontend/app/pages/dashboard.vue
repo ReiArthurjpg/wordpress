@@ -448,48 +448,48 @@ const confirmDelete = async () => {
     <!-- MODAL DE VISUALIZAÇÃO (NOVO) -->
     <div v-if="isViewModalOpen && selectedUser" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" @click="isViewModalOpen = false"></div>
-      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
-        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+      <div class="relative w-full max-w-2xl bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 max-h-[95vh] md:max-h-none flex flex-col">
+        <div class="px-6 py-4 md:px-8 md:py-6 border-b border-slate-50 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Detalhes do Usuário</h2>
-            <p class="text-sm text-slate-500">Visualizando informações completas do registro.</p>
+            <h2 class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Detalhes do Usuário</h2>
+            <p class="text-xs md:text-sm text-slate-500">Visualizando informações completas do registro.</p>
           </div>
-          <button @click="isViewModalOpen = false" class="p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
+          <button @click="isViewModalOpen = false" class="p-2 md:p-3 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="p-8 max-h-[75vh] overflow-y-auto">
-          <div class="flex flex-col items-center mb-10">
-            <img v-if="selectedUser.acf?.imagem" :src="selectedUser.acf.imagem.url" class="w-28 h-28 rounded-[2.5rem] object-cover border-2 border-slate-100 shadow-inner" />
-            <div v-else class="w-28 h-28 rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-4xl text-blue-600 shadow-inner">
+        <div class="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+          <div class="flex flex-col items-center mb-6 md:mb-10">
+            <img v-if="selectedUser.acf?.imagem" :src="selectedUser.acf.imagem.url" class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] md:rounded-[2.5rem] object-cover border-2 border-slate-100 shadow-inner" />
+            <div v-else class="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] md:rounded-[2.5rem] bg-slate-50 border-2 border-slate-100 flex items-center justify-center font-black text-3xl md:text-4xl text-blue-600 shadow-inner">
               {{ selectedUser.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
             </div>
-            <h3 class="mt-4 text-2xl font-black text-slate-900">{{ selectedUser.acf?.nome || 'Sem nome' }}</h3>
-            <span class="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-xs font-black uppercase tracking-widest mt-2">Usuário Ativo</span>
+            <h3 class="mt-4 text-xl md:text-2xl font-black text-slate-900">{{ selectedUser.acf?.nome || 'Sem nome' }}</h3>
+            <span class="px-4 py-1.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest mt-2">Usuário Ativo</span>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-8">
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">E-mail Corporativo</label>
+              <label class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">E-mail Corporativo</label>
               <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <Mail class="w-4 h-4 text-slate-400" /> {{ selectedUser.acf?.email || 'N/A' }}
               </p>
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Documento CPF</label>
+              <label class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Documento CPF</label>
               <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <CreditCard class="w-4 h-4 text-slate-400" /> {{ selectedUser.acf?.cpf || 'N/A' }}
               </p>
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Data de Nascimento</label>
+              <label class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Data de Nascimento</label>
               <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <Calendar class="w-4 h-4 text-slate-400" /> {{ formatDate(selectedUser.acf?.data_de_nascimento) }}
               </p>
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">ID do Registro</label>
+              <label class="text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">ID do Registro</label>
               <p class="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <ExternalLink class="w-4 h-4 text-slate-400" /> #USR-{{ selectedUser.id }}
               </p>
@@ -497,11 +497,11 @@ const confirmDelete = async () => {
           </div>
         </div>
 
-        <div class="px-8 py-6 bg-slate-50/50 border-t border-slate-50 flex items-center justify-end gap-3">
-          <button @click="isViewModalOpen = false" class="px-6 py-3.5 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
+        <div class="px-6 py-4 md:px-8 md:py-6 bg-slate-50/50 border-t border-slate-50 flex flex-col sm:flex-row items-center justify-end gap-3 flex-shrink-0">
+          <button @click="isViewModalOpen = false" class="w-full sm:w-auto px-6 py-3 md:py-3.5 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
             Fechar
           </button>
-          <button @click="handleEditClick(selectedUser)" class="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center gap-2">
+          <button @click="handleEditClick(selectedUser)" class="w-full sm:w-auto px-10 py-3 md:py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center gap-2">
             <Edit2 class="w-4 h-4" />
             Editar Perfil
           </button>
