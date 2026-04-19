@@ -329,13 +329,6 @@ const confirmDelete = async () => {
               <div class="px-4 py-3 border-b border-slate-50 mb-1">
                 <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sua Conta</p>
               </div>
-              <button @click="navigateTo('/profile')" class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-slate-50 text-slate-700 transition-colors">
-                <User class="w-4 h-4" /> Perfil
-              </button>
-              <button class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-slate-50 text-slate-700 transition-colors">
-                <Settings class="w-4 h-4" /> Configurações
-              </button>
-              <div class="h-px bg-slate-50 my-1"></div>
               <button @click="handleLogout" class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-red-50 text-red-600 transition-colors">
                 <LogOut class="w-4 h-4" /> Sair da conta
               </button>
