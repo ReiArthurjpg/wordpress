@@ -38,7 +38,7 @@ watch(pending, (val) => {
 }, { immediate: true })
 
 // Variáveis de estado
-const viewMode = ref('list')
+const viewMode = ref('grid')
 const showProfileMenu = ref(false)
 const searchQuery = ref('')
 const greeting = ref('')
@@ -366,7 +366,7 @@ const confirmDelete = async () => {
           </div>
 
           <div class="flex items-center gap-3 w-full md:w-auto justify-end border-t md:border-t-0 pt-4 md:pt-0">
-            <div class="bg-slate-100/80 p-1 rounded-xl flex items-center">
+            <div class="hidden md:flex bg-slate-100/80 p-1 rounded-xl items-center">
               <button @click="viewMode = 'grid'" :class="['p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><LayoutGrid class="w-4 h-4" /></button>
               <button @click="viewMode = 'list'" :class="['p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><List class="w-4 h-4" /></button>
             </div>
@@ -403,7 +403,7 @@ const confirmDelete = async () => {
           </div>
         </div>
 
-        <div v-else class="bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto">
+        <div v-else class="hidden md:block bg-white rounded-[2rem] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden overflow-x-auto">
           <table class="w-full text-left border-collapse min-w-[700px]">
             <thead>
               <tr class="bg-slate-50/40 border-b border-slate-100">
