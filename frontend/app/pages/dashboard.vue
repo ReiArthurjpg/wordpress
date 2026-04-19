@@ -372,8 +372,8 @@ const confirmDelete = async () => {
               <button @click="viewMode = 'grid'" :class="['p-2 rounded-lg transition-all', viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><LayoutGrid class="w-4 h-4" /></button>
               <button @click="viewMode = 'list'" :class="['p-2 rounded-lg transition-all', viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700']"><List class="w-4 h-4" /></button>
             </div>
-            <button @click="isModalOpen = true" class="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95 text-sm whitespace-nowrap">
-              <UserPlus class="w-4 h-4" /> Novo Usuário
+            <button @click="isModalOpen = true" class="w-full md:w-auto justify-center flex items-center gap-3 px-8 py-4 md:py-2.5 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 text-base md:text-sm whitespace-nowrap">
+              <UserPlus class="w-5 h-5 md:w-4 md:h-4" /> Novo Usuário
             </button>
           </div>
         </div>
