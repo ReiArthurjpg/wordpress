@@ -512,19 +512,19 @@ const confirmDelete = async () => {
     <!-- MODAL DE EDIÇÃO COMPLETO -->
     <div v-if="isEditModalOpen && selectedUser" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300" @click="isEditModalOpen = false"></div>
-      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500">
-        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+      <div class="relative w-full max-w-2xl bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-500 max-h-[95vh] md:max-h-none flex flex-col">
+        <div class="px-6 py-4 md:px-8 md:py-6 border-b border-slate-50 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Editar Usuário</h2>
-            <p class="text-sm text-slate-500">Altere as informações necessárias do cadastro.</p>
+            <h2 class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Editar Usuário</h2>
+            <p class="text-xs md:text-sm text-slate-500">Altere as informações necessárias do cadastro.</p>
           </div>
-          <button @click="isEditModalOpen = false" class="p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+          <button @click="isEditModalOpen = false" class="p-2 md:p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="p-8 max-h-[75vh] overflow-y-auto">
-          <form class="space-y-8" @submit.prevent="handleEditSubmit">
+        <div class="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+          <form class="space-y-5 md:space-y-8" @submit.prevent="handleEditSubmit">
             <div class="flex flex-col items-center gap-4">
               <div class="relative group cursor-pointer" @click="triggerFileInput">
                 <div class="w-24 h-24 rounded-[2.2rem] bg-indigo-50 border-2 border-indigo-100 flex items-center justify-center overflow-hidden transition-all group-hover:scale-105 relative">
@@ -538,7 +538,7 @@ const confirmDelete = async () => {
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div class="space-y-2">
                 <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
                 <div class="relative group">
@@ -569,11 +569,11 @@ const confirmDelete = async () => {
               </div>
             </div>
 
-            <div class="px-2 pt-2 bg-slate-50/0 flex items-center justify-end gap-3 mt-4">
-              <button type="button" @click="isEditModalOpen = false" class="px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
+            <div class="flex flex-col sm:flex-row items-center justify-end gap-3 mt-4">
+              <button type="button" @click="isEditModalOpen = false" class="w-full sm:w-auto px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
                 Cancelar
               </button>
-              <button type="submit" class="px-10 py-3.5 bg-[#22c55e] text-white rounded-2xl font-black text-sm hover:bg-[#16a34a] transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center gap-2">
+              <button type="submit" class="w-full sm:w-auto px-10 py-3.5 bg-[#22c55e] text-white rounded-2xl font-black text-sm hover:bg-[#16a34a] transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center justify-center gap-2">
                 <Check class="w-4 h-4" />
                 Atualizar Dados
               </button>
@@ -587,19 +587,19 @@ const confirmDelete = async () => {
     <!-- MODAL DE CRIAÇÃO (COM CAMPOS COMPLETOS BASEADOS NA EDIÇÃO) -->
     <div v-if="isModalOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" @click="isModalOpen = false"></div>
-      <div class="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300">
-        <div class="px-8 py-6 border-b border-slate-50 flex items-center justify-between">
+      <div class="relative w-full max-w-2xl bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-8 duration-300 max-h-[95vh] md:max-h-none flex flex-col">
+        <div class="px-6 py-4 md:px-8 md:py-6 border-b border-slate-50 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 class="text-2xl font-black text-slate-900 tracking-tight">Novo Usuário</h2>
-            <p class="text-sm text-slate-500">Interface de criação de novo registro.</p>
+            <h2 class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Novo Usuário</h2>
+            <p class="text-xs md:text-sm text-slate-500">Interface de criação de novo registro.</p>
           </div>
-          <button @click="isModalOpen = false" class="p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
+          <button @click="isModalOpen = false" class="p-2 md:p-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-2xl transition-all">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="p-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
-          <form class="space-y-8" @submit.prevent="handleCreateSubmit">
+        <div class="p-6 md:p-8 overflow-y-auto custom-scrollbar">
+          <form class="space-y-5 md:space-y-8" @submit.prevent="handleCreateSubmit">
             
             <div class="flex flex-col items-center gap-4 mb-4">
               <div class="relative group cursor-pointer" @click="triggerFileInput">
@@ -616,7 +616,7 @@ const confirmDelete = async () => {
               </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div class="space-y-2">
                 <label class="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
                 <div class="relative group">
@@ -657,11 +657,11 @@ const confirmDelete = async () => {
 
             </div>
             
-            <div class="px-2 pt-2 flex items-center justify-end gap-3 mt-4">
-              <button type="button" @click="isModalOpen = false" class="px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
+            <div class="flex flex-col sm:flex-row items-center justify-end gap-3 mt-4">
+              <button type="button" @click="isModalOpen = false" class="w-full sm:w-auto px-6 py-3.5 border-2 border-slate-200 text-slate-500 rounded-2xl font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
                 Cancelar
               </button>
-              <button type="submit" class="px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center gap-2">
+              <button type="submit" class="w-full sm:w-auto px-10 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center gap-2">
                 <Plus class="w-4 h-4" />
                 Criar Usuário
               </button>
