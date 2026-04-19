@@ -343,11 +343,11 @@ const confirmDelete = async () => {
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       
       <!-- BOAS-VINDAS -->
-      <section class="mb-10 animate-in fade-in slide-in-from-left-6 duration-700">
+      <section class="mb-10 animate-in fade-in slide-in-from-left-6 duration-700 text-center md:text-left">
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
           {{ greeting }}, {{ loggedUser?.acf?.nome || 'Usuário' }}!
         </h1>
-        <p class="text-slate-500 mt-2 text-lg max-w-2xl leading-relaxed">
+        <p class="text-slate-500 mt-2 text-lg max-w-2xl leading-relaxed mx-auto md:mx-0">
           Gerencie sua base de usuários com facilidade. Explore os detalhes e realize ações rápidas.
         </p>
       </section>
