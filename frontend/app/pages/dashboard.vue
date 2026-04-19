@@ -318,7 +318,7 @@ const confirmDelete = async () => {
               <div v-else class="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
                 {{ loggedUser?.acf?.nome?.charAt(0).toUpperCase() || 'U' }}
               </div>
-              <div class="hidden md:block text-left">
+              <div class="text-left">
                 <p class="text-sm font-bold leading-none">{{ loggedUser?.acf?.nome || 'Usuário' }}</p>
                 <p class="text-xs text-slate-500 mt-1">{{ loggedUser?.acf?.email || 'email@exemplo.com' }}</p>
               </div>
@@ -328,6 +328,8 @@ const confirmDelete = async () => {
             <div v-if="showProfileMenu" class="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
               <div class="px-4 py-3 border-b border-slate-50 mb-1">
                 <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sua Conta</p>
+                <p class="text-sm font-bold text-slate-800 mt-0.5 truncate">{{ loggedUser?.acf?.nome || 'Usuário' }}</p>
+                <p class="text-xs text-slate-400 truncate">{{ loggedUser?.acf?.email || '' }}</p>
               </div>
               <button @click="handleLogout" class="w-full px-4 py-2.5 text-left text-sm flex items-center gap-3 hover:bg-red-50 text-red-600 transition-colors">
                 <LogOut class="w-4 h-4" /> Sair da conta
