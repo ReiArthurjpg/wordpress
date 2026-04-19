@@ -155,23 +155,23 @@ const handleImageChange = (e) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4 font-sans transition-all duration-700">
-    <div class="max-w-6xl w-full bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row min-h-[750px] border border-slate-100 relative">
+  <div class="min-h-screen bg-[#f8fafc] flex items-start md:items-center justify-center p-0 md:p-4 font-sans transition-all duration-700">
+    <div class="max-w-6xl w-full bg-white md:rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row md:min-h-[750px] border-0 md:border border-slate-100 relative min-h-screen md:min-h-0">
       
       <!-- LADO: FORMULÁRIO -->
       <div 
-        class="w-full md:w-1/2 p-8 lg:p-14 transition-all duration-700 ease-in-out flex flex-col justify-center z-20 bg-white"
+        class="w-full md:w-1/2 px-6 py-10 md:p-8 lg:p-14 transition-all duration-700 ease-in-out flex flex-col justify-center z-20 bg-white flex-1 md:flex-none"
         :class="isLogin ? 'md:translate-x-0' : 'md:translate-x-full'"
       >
         <div :key="isLogin ? 'login' : 'register'" class="animate-in fade-in slide-in-from-bottom-8 duration-700">
 
           <template v-if="isLogin">
-            <div class="mb-10 text-center md:text-left">
-              <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200 mx-auto md:mx-0">
+            <div class="mb-8 text-center md:text-left">
+              <div class="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-blue-200 mx-auto md:mx-0">
                 <Zap class="text-white w-6 h-6" />
               </div>
-              <h2 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-3">Bem-vindo</h2>
-              <p class="text-slate-500 text-lg">Acesse sua conta para gerenciar seus projetos.</p>
+              <h2 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Bem-vindo</h2>
+              <p class="text-slate-500 text-base md:text-lg">Acesse sua conta para gerenciar seus projetos.</p>
             </div>
 
             <form @submit.prevent="handleLoginSubmit" class="space-y-6">
@@ -218,6 +218,10 @@ const handleImageChange = (e) => {
                 Entrar na plataforma
                 <LogIn class="w-5 h-5" />
               </button>
+              
+              <p class="md:hidden text-center mt-8 text-sm text-slate-500 font-medium pb-4">
+                Não tem uma conta? <button type="button" @click="isLogin = false" class="font-bold text-blue-600 hover:text-blue-500 transition-colors">Cadastre-se</button>
+              </p>
             </form>
           </template>
 
@@ -345,6 +349,10 @@ const handleImageChange = (e) => {
                 Finalizar Cadastro
                 <UserPlus class="w-5 h-5" />
               </button>
+
+              <p class="md:hidden text-center mt-8 text-sm text-slate-500 font-medium pb-4">
+                Já tem uma conta? <button type="button" @click="isLogin = true" class="font-bold text-indigo-600 hover:text-indigo-500 transition-colors">Entrar</button>
+              </p>
             </form>
           </template>
         </div>
@@ -352,7 +360,7 @@ const handleImageChange = (e) => {
 
       <!-- LADO: APOIO VISUAL -->
       <div 
-        class="w-full md:w-1/2 absolute top-0 left-0 h-full overflow-hidden flex flex-col justify-center items-center p-12 text-center transition-all duration-700 ease-in-out z-10"
+        class="hidden md:flex w-full md:w-1/2 relative md:absolute md:top-0 md:left-0 md:h-full overflow-hidden flex-col justify-center items-center px-8 py-10 md:p-12 text-center transition-all duration-700 ease-in-out z-10"
         :class="isLogin ? 'md:translate-x-full bg-[#0f172a]' : 'md:translate-x-0 bg-[#1e1b4b]'"
       >
         
@@ -362,11 +370,11 @@ const handleImageChange = (e) => {
           <div class="absolute inset-0 opacity-[0.03]" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 30px 30px"></div>
         </div>
 
-        <div :key="isLogin ? 'msg-login' : 'msg-register'" class="relative z-10 animate-in fade-in zoom-in-95 duration-1000">
-          <h2 class="text-5xl font-bold text-white mb-6 tracking-tight transition-all duration-500">
+        <div :key="isLogin ? 'msg-login' : 'msg-register'" class="relative z-10 animate-in fade-in zoom-in-95 duration-1000 w-full max-w-sm mx-auto">
+          <h2 class="text-3xl md:text-5xl font-bold text-white mb-3 md:mb-6 tracking-tight transition-all duration-500">
             {{ isLogin ? "Olá, amigo!" : "Tudo pronto?" }}
           </h2>
-          <p class="text-slate-300 text-lg leading-relaxed mb-10 max-w-sm mx-auto font-light transition-all duration-500">
+          <p class="text-slate-300 text-sm md:text-lg leading-relaxed mb-6 md:mb-10 mx-auto font-light transition-all duration-500">
             {{ isLogin 
               ? "Insira seus dados pessoais e comece sua jornada conosco agora mesmo." 
               : "Se já possui uma conta, volte para o login e continue de onde parou." }}
@@ -375,15 +383,15 @@ const handleImageChange = (e) => {
           <button
             @click="isLogin = !isLogin"
             type="button"
-            class="group relative inline-flex items-center gap-3 px-12 py-4 bg-white/5 hover:bg-white/10 border border-white/20 rounded-full text-white font-semibold transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 cursor-pointer"
+            class="group relative inline-flex items-center gap-3 px-8 md:px-12 py-3.5 md:py-4 bg-white/5 hover:bg-white/10 border border-white/20 rounded-full text-white font-semibold transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 cursor-pointer text-sm md:text-base"
           >
             <span class="relative z-10 flex items-center gap-2">
               {{ isLogin ? "Criar conta" : "Já tenho conta" }}
-              <component :is="isLogin ? ArrowRight : ArrowLeft" class="w-5 h-5 transition-transform" :class="isLogin ? 'group-hover:translate-x-1' : 'group-hover:-translate-x-1'" />
+              <component :is="isLogin ? ArrowRight : ArrowLeft" class="w-4 h-4 md:w-5 md:h-5 transition-transform" :class="isLogin ? 'group-hover:translate-x-1' : 'group-hover:-translate-x-1'" />
             </span>
           </button>
           
-          <div class="mt-16 flex justify-center gap-2">
+          <div class="mt-8 md:mt-16 flex justify-center gap-2">
               <div class="h-1.5 transition-all duration-500 rounded-full" :class="isLogin ? 'w-8 bg-blue-500' : 'w-4 bg-slate-700'"></div>
               <div class="h-1.5 transition-all duration-500 rounded-full" :class="!isLogin ? 'w-8 bg-indigo-500' : 'w-4 bg-slate-700'"></div>
           </div>
