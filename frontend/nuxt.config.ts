@@ -7,5 +7,9 @@ export default defineNuxtConfig({
     families: [
       { name: 'Outfit', provider: 'google' }
     ]
+  },
+  devServer: {
+    host: '0.0.0.0',
+    port: 3000
   }
 })
